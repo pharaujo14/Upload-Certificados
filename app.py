@@ -15,6 +15,7 @@ from google.auth.transport.requests import Request
 
 from conectaBanco import conectaBanco
 from login import login, is_authenticated
+from cadastra_user import trocar_senha, adicionar_usuario
 
 # Função para envio de email
 def enviar_resultado(subject, body, sender, recipients, password):

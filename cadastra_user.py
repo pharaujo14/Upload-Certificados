@@ -148,8 +148,11 @@ def copiar_senha_callback():
     """
     Callback para copiar a senha gerada para a área de transferência.
     """
-    pyperclip.copy(st.session_state.senha_gerada)
-    st.session_state.senha_copiada = True
+    try:
+        pyperclip.copy(st.session_state.senha_gerada)
+        st.session_state.senha_copiada = True
+    except pyperclip.PyperclipException:
+        st.warning("Não foi possível copiar automaticamente para a área de transferência. Copie manualmente a senha exibida acima.")
 
 def formatar_nome(email):
     """

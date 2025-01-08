@@ -27,7 +27,7 @@ def adicionar_usuario():
     with st.form("form_novo_usuario"):
         st.write("Adicionar Novo Usuário")
         username = st.text_input("E-mail do Usuário")
-        role = st.selectbox("Função", ["user", "admin"])
+        role = st.selectbox("Função", ["user", "admin", "viewer"])
         area = st.selectbox("Área", ["Comercial", "Operacional"])
         adicionar_button = st.form_submit_button("Adicionar Usuário")
 

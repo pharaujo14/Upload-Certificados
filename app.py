@@ -70,16 +70,24 @@ def upload_to_drive(file_name, file_path, folder_id, custom_name):
             "parents": [folder_id]
         }
         response = session.post(url, headers=headers, json=metadata)
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Content: {response.content.decode()}")
+
         if response.status_code not in [200, 201]:
             st.error(f"Erro ao inicializar o upload: {response.content.decode()}")
             return None
 
         # URL de upload retornada pelo Google
         upload_url = response.headers["Location"]
+        if not upload_url:
+            print("Erro: URL de upload não encontrada no cabeçalho.")
+            return
 
         # Upload do arquivo
         with open(file_path, "rb") as f:
             upload_response = session.put(upload_url, headers={"Content-Type": "application/octet-stream"}, data=f)
+            print(f"Upload Response Status: {upload_response.status_code}")
+            print(f"Upload Response Content: {upload_response.content.decode()}")
 
         if upload_response.status_code in [200, 201]:
             file_id = upload_response.json().get("id")
@@ -192,7 +200,7 @@ if st.button("Salvar Certificação"):
             custom_name = f"{user_name}_{ferramenta_selecionada}_{certification_name}_{unique_id}"
 
             # Fazer upload para o Google Drive
-            folder_id = "1Iy2It2zBXi7O_Ict3rDy7HH_kllb7xc2"
+            folder_id = "1to0AiUISUyUmFjfR_KeRY8SFXDME8nKv"
             file_id = upload_to_drive(custom_name, file_path, folder_id, custom_name)
 
             if not file_id:

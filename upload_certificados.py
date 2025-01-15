@@ -13,8 +13,6 @@ logo_century = Image.open("logo_site.png")
 
 # Verifica a role do usuário logado
 user_role = st.session_state.get('role', '')
-user_name = st.session_state.get('nome', '')
-user_area = st.session_state.get('area', '')
 
 # Carregar credenciais do banco de dados
 db_user = st.secrets["database"]["user"]
@@ -23,7 +21,7 @@ db_password = st.secrets["database"]["password"]
 # Conexão com o banco de dados
 db = conectaBanco(db_user, db_password)
 
-def pagina_upload():
+def pagina_upload(user_name, user_area):
         col1, col2, col3 = st.columns([1, 3, 1])
 
         with col1:

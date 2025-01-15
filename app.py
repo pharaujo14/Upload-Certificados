@@ -65,7 +65,7 @@ with st.sidebar:
 
 # Aba de Upload de Certificados
 if selected_tab == "Upload de Certificados":
-    pagina_upload()
+    pagina_upload(user_name, user_area)
     
 # Aba de Relatórios
 elif selected_tab == "Relatórios":
@@ -76,13 +76,33 @@ elif selected_tab == "Relatórios":
 
 # Aba de Relatórios
 elif selected_tab == "Trocar Senha":
-    st.markdown("<h2>Trocar senha</h2>", unsafe_allow_html=True)
-    trocar_senha()
+        col1, col2, col3 = st.columns([1, 3, 1])
+
+        with col1:
+            st.image(logo_astronauta, width=150)
+
+        with col2:
+                st.markdown("<h2>Trocar senha</h2>", unsafe_allow_html=True)
+
+        with col3:
+            st.image(logo_century, width=150)
+
+        trocar_senha()
 
 # Aba de Relatórios
 elif selected_tab == "Cadastrar Novo Usuário":
-    st.markdown("<h2>Cadastrar Novo usuário</h2>", unsafe_allow_html=True)
-    if user_role in ["admin"]:
-        adicionar_usuario()
-    else:
-        st.warning("Você não tem permissão para acessar esta aba.")
+        col1, col2, col3 = st.columns([1, 3, 1])
+
+        with col1:
+            st.image(logo_astronauta, width=150)
+
+        with col2:
+            st.markdown("<h2>Cadastrar Novo usuário</h2>", unsafe_allow_html=True)
+
+        with col3:
+            st.image(logo_century, width=150)
+            
+        if user_role in ["admin"]:
+            adicionar_usuario()
+        else:
+            st.warning("Você não tem permissão para acessar esta aba.")

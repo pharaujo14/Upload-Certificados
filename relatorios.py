@@ -46,6 +46,9 @@ def pagina_relatorios():
 
             user_options = ["Todos"] + sorted(df['user_name'].unique())
             selected_user = st.selectbox("Colaborador", user_options)
+            
+            fabricante_options = ["Todos"] + sorted(df['ferramenta_certificacao'].unique())
+            selected_fabricante = st.selectbox("Fabricante", fabricante_options)
 
         # Aplicar filtros
         filtered_df = df.copy()
@@ -54,6 +57,9 @@ def pagina_relatorios():
 
         if selected_user != "Todos":
             filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
+            
+        if selected_fabricante != "Todos":
+            filtered_df = filtered_df[filtered_df['ferramenta_certificacao'] == selected_fabricante]
 
         # Exibir quantidade total de certificações pelos filtros
         st.markdown("<h3>Quantidade de Certificações</h3>", unsafe_allow_html=True)
@@ -101,6 +107,65 @@ def pagina_relatorios():
             st.pyplot(fig)
         else:
             st.warning("Não há dados para exibir o gráfico.")
+            
+        # Agrupar os dados corretamente e contar as certificações
+        certification_table = (
+            filtered_df.groupby(['ferramenta_certificacao', 'certification_name'])
+            .size()
+            .reset_index(name='Quantidade')
+        )
+
+        # Renomear as colunas
+        certification_table.rename(columns={
+            "ferramenta_certificacao": "Ferramenta",
+            "certification_name": "Certificação"
+        }, inplace=True)
+
+        # Adicionar linha final com o total
+        total_row = pd.DataFrame({
+            "Ferramenta": ["Total"], 
+            "Certificação": [""],  # Mantém vazio para alinhamento
+            "Quantidade": [certification_table["Quantidade"].sum()]
+        })
+
+        # Concatenar a tabela com a linha de total
+        certification_table = pd.concat([certification_table, total_row], ignore_index=True)
+
+        # Exibir a tabela antes do gráfico
+        st.markdown("<h3>Total de Certificações por Ferramenta</h3>", unsafe_allow_html=True)
+        st.dataframe(certification_table, use_container_width=True)
+        
+        # Agrupar os dados corretamente sem contar as certificações
+        certification_table = (
+            filtered_df[['user_name', 'ferramenta_certificacao', 'certification_name']]
+            .drop_duplicates()
+            .sort_values(by=['user_name', 'ferramenta_certificacao', 'certification_name'])
+        )
+
+        # Renomear as colunas
+        certification_table.rename(columns={
+            "user_name": "Funcionário",
+            "ferramenta_certificacao": "Ferramenta",
+            "certification_name": "Certificação"
+        }, inplace=True)
+
+        # Adicionar linha final com o total de certificações
+        total_certifications = len(certification_table)
+        total_row = pd.DataFrame({
+            "Funcionário": ["Total"], 
+            "Ferramenta": [""],  
+            "Certificação": [""]
+        })
+
+        # Concatenar a tabela com a linha de total
+        certification_table = pd.concat([certification_table, total_row], ignore_index=True)
+
+        # Exibir a tabela antes do gráfico
+        st.markdown("<h3>Total de Certificações por Funcionário</h3>", unsafe_allow_html=True)
+        st.dataframe(certification_table, use_container_width=True)
+
+        # Exibir o total de certificações abaixo da tabela
+        st.markdown(f"**Total de Certificações: {total_certifications}**")
 
     except Exception as e:
         st.error(f"Erro ao carregar os dados: {e}")

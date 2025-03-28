@@ -1,12 +1,15 @@
 import streamlit as st
 import bcrypt
 
-from auxiliar import validar_email, formatar_nome, gerar_senha_automatica, copiar_senha_callback
+from utils.auxiliar import validar_email, formatar_nome, gerar_senha_automatica
+from utils.email_utils import gerar_email_institucional, enviar_resultado
 
 def badge(text, color):
     return f"<span style='background:{color}; color:white; padding:3px 8px; border-radius:8px; font-size:11px;'>{text}</span>"
 
 def gerenciar_usuarios(db):
+    
+    criar_usuario(db)
 
     users_collection = db["users"]
 
@@ -46,10 +49,13 @@ def gerenciar_usuarios(db):
                     </div>
                     """, unsafe_allow_html=True
                 )
-                col1, col2 = st.columns([1,1])
+                
+                col1, col2, col3 = st.columns([1,1,1])
+
                 with col1:
                     if st.button("✏️ Editar", key=f"editar_{usuario['_id']}"):
                         st.session_state.usuario_a_editar = usuario
+
                 with col2:
                     if st.button("🚩 Inativar" if ativo else "✅ Reativar", key=f"inativar_{usuario['_id']}"):
                         users_collection.update_one(
@@ -58,6 +64,30 @@ def gerenciar_usuarios(db):
                         )
                         st.success("Status do usuário atualizado.")
                         st.experimental_rerun()
+
+                with col3:
+                    if st.button("🔑 Resetar Senha", key=f"reset_{usuario['_id']}"):
+                        nova_senha = gerar_senha_automatica()
+                        hashed_password = bcrypt.hashpw(nova_senha.encode("utf-8"), bcrypt.gensalt())
+                        users_collection.update_one(
+                            {"_id": usuario["_id"]},
+                            {"$set": {"password": hashed_password}}
+                        )
+
+                        body = gerar_email_institucional("redefinir_senha", {
+                            "nome": usuario.get("nome", ""),
+                            "senha": nova_senha,
+                            "link_sistema": "https://centurydata-certificados.streamlit.app/"
+                        })
+
+                        subject = "🔑 Redefinição de senha - Century Data"
+                        sender = st.secrets['smtp']['sender']
+                        recipient = usuario.get("username", "")
+                        password_smtp = st.secrets['smtp']['password']
+
+                        enviar_resultado(subject, body, sender, [recipient], password_smtp, html=True)
+
+                        st.success("Senha redefinida e enviada por e-mail.")
     else:
         st.info("Nenhum usuário encontrado.")
 
@@ -96,13 +126,11 @@ def gerenciar_usuarios(db):
 
     st.markdown("---")
 
-    # Formulário de adição
-    st.subheader("➕ Adicionar Novo Usuário")
+def criar_usuario(db):
 
-    if "senha_gerada" not in st.session_state:
-        st.session_state.senha_gerada = None
-    if "senha_copiada" not in st.session_state:
-        st.session_state.senha_copiada = False
+    users_collection = db["users"]
+
+    st.subheader("➕ Adicionar Novo Usuário")
 
     with st.form("form_novo_usuario"):
         username = st.text_input("E-mail do Usuário")
@@ -116,12 +144,10 @@ def gerenciar_usuarios(db):
         elif users_collection.find_one({"username": username}):
             st.warning("O e-mail já está em uso.")
         else:
-            st.session_state.senha_gerada = gerar_senha_automatica()
-            st.session_state.senha_copiada = False
-
+            senha_gerada = gerar_senha_automatica()
             nome_formatado = formatar_nome(username)
+            hashed_password = bcrypt.hashpw(senha_gerada.encode("utf-8"), bcrypt.gensalt())
 
-            hashed_password = bcrypt.hashpw(st.session_state.senha_gerada.encode("utf-8"), bcrypt.gensalt())
             users_collection.insert_one({
                 "username": username,
                 "password": hashed_password,
@@ -130,12 +156,20 @@ def gerenciar_usuarios(db):
                 "nome": nome_formatado,
                 "ativo": True
             })
-            st.success(f"Usuário {username} criado com sucesso!")
 
-    if st.session_state.senha_gerada:
-        st.info("Usuário criado! Anote a senha:")
-        st.text_area("Senha gerada", value=st.session_state.senha_gerada, height=50, key="senha_texto")
-        st.button("Copiar senha", on_click=copiar_senha_callback)
+            # Gerar e-mail institucional
+            body = gerar_email_institucional("criar_usuario", {
+                "nome": nome_formatado,
+                "username": username,
+                "senha": senha_gerada,
+                "link_sistema": "https://centurydata-certificados.streamlit.app/"
+            })
 
-        if st.session_state.senha_copiada:
-            st.success("Senha copiada para a área de transferência!")
+            subject = "Seus dados de acesso - Century Data"
+            sender = st.secrets['smtp']['sender']
+            recipient = username
+            password = st.secrets['smtp']['password']
+
+            enviar_resultado(subject, body, sender, [recipient], password, html=True)
+
+            st.success(f"Usuário {username} criado e senha enviada por e-mail!")

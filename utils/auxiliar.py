@@ -5,24 +5,9 @@ import requests
 import re
 import random
 import string
-import pyperclip
 
-from email.mime.text import MIMEText
 from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import Request
-
-# Função para envio de email
-def enviar_resultado(subject, body, sender, recipients, password):
-    msg = MIMEText(body)
-    msg['Subject'] = subject
-    msg['From'] = sender
-    msg['To'] = ', '.join(recipients)
-    
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
-        smtp_server.login(sender, password)
-        smtp_server.sendmail(sender, recipients, msg.as_string())
-    
-    print("Email enviado com sucesso!")
 
 # Função para verificar se o arquivo está em uso
 def is_file_in_use(file_path):
@@ -128,16 +113,6 @@ def validar_email(email):
     """
     regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(regex, email) is not None
-
-def copiar_senha_callback():
-    """
-    Callback para copiar a senha gerada para a área de transferência.
-    """
-    try:
-        pyperclip.copy(st.session_state.senha_gerada)
-        st.session_state.senha_copiada = True
-    except pyperclip.PyperclipException:
-        st.warning("Não foi possível copiar automaticamente para a área de transferência. Copie manualmente a senha exibida acima.")
 
 def formatar_nome(email):
     """

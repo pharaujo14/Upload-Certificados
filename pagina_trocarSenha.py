@@ -1,7 +1,7 @@
 import streamlit as st
 import bcrypt
 
-from auxiliar import validar_senha
+from utils.auxiliar import validar_senha
 
 # Função para troca de senha
 def trocar_senha(db):

@@ -4,8 +4,8 @@ import pytz
 from PIL import Image
 from streamlit_option_menu import option_menu
 
-from conectaBanco import conectaBanco
-from login import login, is_authenticated
+from utils.conectaBanco import conectaBanco
+from pagina_login import login, is_authenticated
 
 from pagina_usuarios import gerenciar_usuarios
 from pagina_trocarSenha import trocar_senha

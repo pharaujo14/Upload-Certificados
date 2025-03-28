@@ -4,8 +4,9 @@ import uuid
 
 from PIL import Image
 from datetime import date
-from auxiliar import enviar_resultado, is_file_in_use, upload_to_drive
-from conectaBanco import conectaBanco
+from utils.auxiliar import is_file_in_use, upload_to_drive
+from utils.email_utils import enviar_resultado, gerar_email_institucional
+from utils.conectaBanco import conectaBanco
 
 # Carregar logos
 logo_astronauta = Image.open("logo.png")
@@ -98,21 +99,23 @@ def pagina_upload(user_name, user_area):
                         })
                         st.success("Certificação salva com sucesso!")
                         st.balloons()
+                        
+                        # Monta o corpo já no template padronizado
+                        body = gerar_email_institucional("upload_certificado", {
+                            "nome": user_name,
+                            "arquivo": custom_name,
+                            "link_sistema": "https://centurydata-certificados.streamlit.app/"
+                        })
 
-                        # Envia o email após o download do PDF
                         subject = f"Nova certificação enviada de {user_name}"
-                        body = f"O usuário {user_name} realizou o upload do arquivo {custom_name}."
 
-                        # Configurações de email
-
-                        # Define o remetente e o destinatário
+                        # Configurações de e-mail
                         sender = st.secrets['smtp']['sender']
                         recipient = st.secrets['smtp']['recipient']
                         password = st.secrets['smtp']['password']
 
-                        # Função de envio de email permanece igual
-                        enviar_resultado(subject, body, sender, [recipient], password)
-
+                        # Envia o e-mail no formato HTML
+                        enviar_resultado(subject, body, sender, [recipient], password, html=True)
 
                     # Verificar se o arquivo está em uso antes de removê-lo
                     if is_file_in_use(file_path):

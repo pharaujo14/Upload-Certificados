@@ -2,21 +2,19 @@ import streamlit as st
 import pytz
 
 from PIL import Image
+from streamlit_option_menu import option_menu
 
 from conectaBanco import conectaBanco
 from login import login, is_authenticated
-from cadastra_user import trocar_senha, adicionar_usuario
-from streamlit_option_menu import option_menu
-from upload_certificados import pagina_upload
-from relatorios import pagina_relatorios
+
+from pagina_usuarios import gerenciar_usuarios
+from pagina_trocarSenha import trocar_senha
+from pagina_ferramentas import pagina_ferramentas
+from pagina_upload_certificados import pagina_upload
+from pagina_relatorios import pagina_relatorios
 
 # Definir o timezone do Brasil
 timezone_brasil = pytz.timezone('America/Sao_Paulo')
-
-# Verifica se o usuário está autenticado
-if not is_authenticated():
-    login()
-    st.stop()
 
 # Verifica a role do usuário logado
 user_role = st.session_state.get('role', '')
@@ -30,14 +28,17 @@ db_password = st.secrets["database"]["password"]
 # Conexão com o banco de dados
 db = conectaBanco(db_user, db_password)
 
+# Verifica se o usuário está autenticado
+if not is_authenticated():
+    login(db)
+    st.stop()
+    
 # Carregar logos
 logo_astronauta = Image.open("logo.png")
 logo_century = Image.open("logo_site.png")
 
 # Configurações da página com o logo
 st.set_page_config(page_title="Century Data", page_icon="Century_mini_logo-32x32.png", layout="wide")
-
-
 # Filtros e seleção de período
 with st.sidebar:
     st.image(logo_century, width=150)
@@ -51,8 +52,11 @@ with st.sidebar:
         menu_icons.append("bar-chart")
 
     if user_role == "admin":
-        menu_options.append("Cadastrar Novo Usuário")
+        menu_options.append("Controle de usuários")
         menu_icons.append("person-plus")
+        
+        menu_options.append("Controle de Ferramentas")
+        menu_icons.append("key")
 
     # Configuração do menu dinâmico
     selected_tab = option_menu(
@@ -70,7 +74,7 @@ if selected_tab == "Upload de Certificados":
 # Aba de Relatórios
 elif selected_tab == "Relatórios":
     if user_role in ["viewer", "admin"]:
-        pagina_relatorios()
+        pagina_relatorios(db)
     else:
         st.warning("Você não tem permissão para acessar esta aba.")
 
@@ -87,22 +91,40 @@ elif selected_tab == "Trocar Senha":
         with col3:
             st.image(logo_century, width=150)
 
-        trocar_senha()
+        trocar_senha(db)
 
 # Aba de Relatórios
-elif selected_tab == "Cadastrar Novo Usuário":
+elif selected_tab == "Controle de usuários":
         col1, col2, col3 = st.columns([1, 3, 1])
 
         with col1:
             st.image(logo_astronauta, width=150)
 
         with col2:
-            st.markdown("<h2>Cadastrar Novo usuário</h2>", unsafe_allow_html=True)
+            st.markdown("<h2>Controle de usuários</h2>", unsafe_allow_html=True)
 
         with col3:
             st.image(logo_century, width=150)
             
         if user_role in ["admin"]:
-            adicionar_usuario()
+            gerenciar_usuarios(db)
+        else:
+            st.warning("Você não tem permissão para acessar esta aba.")
+
+# Aba de controle de ferramentas
+elif selected_tab == "Controle de Ferramentas":
+        col1, col2, col3 = st.columns([1, 3, 1])
+
+        with col1:
+            st.image(logo_astronauta, width=150)
+
+        with col2:
+            st.markdown("<h2>Controle de Ferramentas</h2>", unsafe_allow_html=True)
+
+        with col3:
+            st.image(logo_century, width=150)
+            
+        if user_role in ["admin"]:
+            pagina_ferramentas(db)
         else:
             st.warning("Você não tem permissão para acessar esta aba.")

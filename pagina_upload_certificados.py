@@ -42,7 +42,13 @@ def pagina_upload(user_name, user_area):
         tipo_certificacao = ['Nova', 'Renovação']
         tipo_selecionada = st.selectbox('Tipo de certificação', tipo_certificacao)
 
-        ferramenta_certificacao = ['BigID', 'Noname', 'Akamai', 'OneTrust', 'SentinelOne', 'Zendesk', 'Securiti', 'AppGate', 'IBM', 'Zscaler', 'Wiz', 'Thales']
+        collection_ferramentas = db["ferramentas"]
+
+        # Consulta das ferramentas
+        ferramentas_cursor = collection_ferramentas.find({}, {"_id": 0, "ferramenta": 1})
+        ferramenta_certificacao = [f["ferramenta"] for f in ferramentas_cursor]
+
+        # Selectbox
         ferramenta_selecionada = st.selectbox('Ferramenta', ferramenta_certificacao)
 
         certification_name = st.text_input(

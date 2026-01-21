@@ -3,7 +3,6 @@ import bcrypt
 
 # Função para autenticação
 def login(db):
-    st.set_page_config(page_title="Century Data", page_icon="Century_mini_logo-32x32.png")
     st.image("logo_site.png", use_column_width=True)
 
     st.title("Login")

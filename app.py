@@ -21,7 +21,12 @@ user_role = st.session_state.get('role', '')
 user_name = st.session_state.get('nome', '')
 user_area = st.session_state.get('area', '')
 
-db = conectaBanco()
+# Carregar credenciais do banco de dados
+db_user = st.secrets["database"]["user"]
+db_password = st.secrets["database"]["password"]
+
+# Conexão com o banco de dados
+db = conectaBanco(db_user, db_password)
 
 # Verifica se o usuário está autenticado
 if not is_authenticated():
@@ -64,7 +69,7 @@ with st.sidebar:
 
 # Aba de Upload de Certificados
 if selected_tab == "Upload de Certificados":
-    pagina_upload(user_name, user_area, db)
+    pagina_upload(user_name, user_area)
     
 # Aba de Relatórios
 elif selected_tab == "Relatórios":

@@ -6,7 +6,6 @@ from PIL import Image
 from datetime import date
 from utils.auxiliar import is_file_in_use, upload_to_drive
 from utils.email_utils import enviar_resultado, gerar_email_institucional
-from utils.conectaBanco import conectaBanco
 
 # Carregar logos
 logo_astronauta = Image.open("logo.png")
@@ -15,14 +14,7 @@ logo_century = Image.open("logo_site.png")
 # Verifica a role do usuário logado
 user_role = st.session_state.get('role', '')
 
-# Carregar credenciais do banco de dados
-db_user = st.secrets["database"]["user"]
-db_password = st.secrets["database"]["password"]
-
-# Conexão com o banco de dados
-db = conectaBanco(db_user, db_password)
-
-def pagina_upload(user_name, user_area):
+def pagina_upload(user_name, user_area, db):
         col1, col2, col3 = st.columns([1, 3, 1])
 
         with col1:

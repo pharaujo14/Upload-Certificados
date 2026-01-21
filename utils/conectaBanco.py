@@ -1,11 +1,12 @@
-# Importa a classe MongoClient da biblioteca pymongo.
-# Isso nos permitirá conectar a um banco de dados MongoDB.
 from pymongo import MongoClient
+import streamlit as st
 
-def conectaBanco(username, password):
-    # Cria um objeto MongoClient. Este objeto representa uma conexão de cliente com o banco de dados MongoDB.
-    # Usamos uma f-string para formatar a string de conexão com o nome de usuário e a senha.
-    # O URI de conexão inclui o nome de usuário, senha e informações do cluster.
-    client = MongoClient(f'mongodb+srv://{username}:{password}@centurydatamongocluster.k5fsf.mongodb.net/?retryWrites=true&w=majority&appName=CenturyDataMongoCluster')
-    db = client["CenturyData"]
-    return db["certificados"]
+@st.cache_resource
+def conectaBanco():
+    client = MongoClient(
+        f'mongodb+srv://{st.secrets["database"]["user"]}:'
+        f'{st.secrets["database"]["password"]}'
+        '@centurydatamongocluster.k5fsf.mongodb.net/'
+        '?retryWrites=true&w=majority'
+    )
+    return client["CenturyData"]

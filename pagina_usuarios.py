@@ -77,7 +77,7 @@ def gerenciar_usuarios(db):
                         body = gerar_email_institucional("redefinir_senha", {
                             "nome": usuario.get("nome", ""),
                             "senha": nova_senha,
-                            "link_sistema": "https://centurydata-certificados.streamlit.app/"
+                            "link_sistema": "https://centurydata.streamlit.app/"
                         })
 
                         subject = "🔑 Redefinição de senha - Century Data"
@@ -97,7 +97,7 @@ def gerenciar_usuarios(db):
         with st.expander(f"✏️ Editar usuário: {usuario.get('username', '')}", expanded=True):
             novo_nome = st.text_input("Nome", value=usuario.get("nome", ""))
             novo_email = st.text_input("E-mail", value=usuario.get("username", ""))
-            nova_role = st.selectbox("Função", ["user", "admin", "viewer"], index=["user", "admin", "viewer"].index(usuario.get("role", "user")))
+            nova_role = st.selectbox("Função", ["user", "admin", "viewer", "bdr"], index=["user", "admin", "viewer"].index(usuario.get("role", "user")))
             nova_area = st.selectbox("Área", ["Comercial", "Operacional"], index=["Comercial", "Operacional"].index(usuario.get("area", "Comercial")))
 
             col1, col2 = st.columns(2)
@@ -134,7 +134,7 @@ def criar_usuario(db):
 
     with st.form("form_novo_usuario"):
         username = st.text_input("E-mail do Usuário")
-        role = st.selectbox("Função", ["user", "admin", "viewer"])
+        role = st.selectbox("Função", ["user", "admin", "viewer", "bdr"])
         area = st.selectbox("Área", ["Comercial", "Operacional"])
         adicionar_button = st.form_submit_button("Adicionar Usuário")
 
@@ -162,7 +162,7 @@ def criar_usuario(db):
                 "nome": nome_formatado,
                 "username": username,
                 "senha": senha_gerada,
-                "link_sistema": "https://centurydata-certificados.streamlit.app/"
+                "link_sistema": "https://centurydata.streamlit.app/"
             })
 
             subject = "Seus dados de acesso - Century Data"

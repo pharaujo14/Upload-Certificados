@@ -13,21 +13,13 @@ def _ensure_google_oauth_file():
     Cria o arquivo JSON de credenciais do Google OAuth
     a partir do secrets.toml (se ainda não existir).
     """
-    if os.path.exists(GOOGLE_SECRET_FILE):
-        return GOOGLE_SECRET_FILE
-
     google_oauth = {
         "web": {
             "client_id": st.secrets["google_oauth"]["client_id"],
             "client_secret": st.secrets["google_oauth"]["client_secret"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [
-                st.secrets["google_oauth"].get(
-                    "redirect_uri",
-                    "https://centurydata.streamlit.app"
-                )
-            ],
+            "redirect_uris": [st.secrets["google_oauth"]["redirect_uri"]],
         }
     }
 
@@ -50,9 +42,11 @@ def login(db):
     # LOGIN COM GOOGLE (SSO)
     # ======================
     secret_file = _ensure_google_oauth_file()
+    redirect_uri = st.secrets["google_oauth"]["redirect_uri"]
 
     auth = Authenticate(
         secret_credentials_path=secret_file,
+        redirect_uri=redirect_uri,
         cookie_name="google_auth",
         cookie_key="random_cookie_key",
     )

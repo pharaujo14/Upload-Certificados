@@ -22,7 +22,12 @@ def _ensure_google_oauth_file():
             "client_secret": st.secrets["google_oauth"]["client_secret"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [st.secrets["google_oauth"]["redirect_uri"]],
+            "redirect_uris": [
+                st.secrets["google_oauth"].get(
+                    "redirect_uri",
+                    "https://centurydata.streamlit.app"
+                )
+            ],
         }
     }
 

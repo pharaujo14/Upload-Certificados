@@ -3,9 +3,6 @@ import bcrypt
 from streamlit_google_auth import Authenticate
 
 
-# ======================
-# LOGIN
-# ======================
 def login(db):
     st.image("logo_site.png", use_column_width=True)
     st.title("Login")
@@ -15,11 +12,20 @@ def login(db):
     # ======================
     # LOGIN COM GOOGLE (SSO)
     # ======================
+    google_creds = {
+        "web": {
+            "client_id": st.secrets["google_oauth"]["client_id"],
+            "client_secret": st.secrets["google_oauth"]["client_secret"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["https://centurydata.streamlit.app/"],
+        }
+    }
+
     auth = Authenticate(
-        secret_credentials_path=".streamlit/secrets.toml",
+        credentials=google_creds,
         cookie_name="google_auth",
         cookie_key="random_cookie_key",
-        redirect_uri="https://centurydata.streamlit.app/",
     )
 
     auth_info = auth.login("Entrar com Google", "main")
@@ -46,12 +52,12 @@ def login(db):
     # ======================
     # LOGIN TRADICIONAL
     # ======================
-    with st.form(key="login_form"):
+    with st.form("login_form"):
         username = st.text_input("Usuário")
         password = st.text_input("Senha", type="password")
-        login_button = st.form_submit_button("Entrar")
+        submit = st.form_submit_button("Entrar")
 
-    if login_button:
+    if submit:
         user_data = users_collection.find_one({"username": username})
 
         if not user_data:
@@ -62,7 +68,7 @@ def login(db):
             st.error("Usuário inativado. Contate o administrador.")
             return
 
-        if not bcrypt.checkpw(password.encode("utf-8"), user_data["password"]):
+        if not bcrypt.checkpw(password.encode(), user_data["password"]):
             st.error("Usuário ou senha incorretos.")
             return
 
@@ -70,10 +76,7 @@ def login(db):
         st.experimental_rerun()
 
 
-# ======================
-# SESSION HELPERS
-# ======================
-def _set_session(user_data: dict):
+def _set_session(user_data):
     st.session_state["logged_in"] = True
     st.session_state["username"] = user_data.get("username")
     st.session_state["nome"] = user_data.get("nome")
@@ -81,8 +84,5 @@ def _set_session(user_data: dict):
     st.session_state["area"] = user_data.get("area")
 
 
-# ======================
-# AUTH CHECK
-# ======================
 def is_authenticated():
     return st.session_state.get("logged_in", False)

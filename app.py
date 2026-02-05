@@ -103,7 +103,7 @@ page = st.session_state["page"]
     
 # -------- BDRs --------
 if page == "bdr_dashboard":
-    if user_role == "admin":
+    if user_role in ["viewer", "admin"]:
         pagina_relatorios_bdr_executivo(db)
     else:
         pagina_relatorios_bdr_operacional(db)

@@ -14,7 +14,6 @@ from pagina_relatorios import pagina_relatorios
 from pagina_relatorios_bdr_executivo import pagina_relatorios_bdr_executivo
 from pagina_relatorios_bdr_operacional import pagina_relatorios_bdr_operacional
 
-
 # ======================
 # Configurações iniciais
 # ======================
@@ -79,6 +78,21 @@ with st.sidebar:
         if user_role == "admin":
             if st.button("Controle de Ferramentas", use_container_width=True):
                 st.session_state["page"] = "ferramentas"
+                
+    # ----- Calculadora -----
+    if user_role in ["viewer", "admin", "account", "prevendas"]:
+        with st.expander("🧮 Calculadora"):
+            st.link_button(
+                "Abrir calculadora de preço",
+                "https://precovendas.streamlit.app/", use_container_width=True
+            )
+
+    # ----- DocEase -----
+        with st.expander("🤑 DocEase"):
+            st.link_button(
+                "Abrir DocEase",
+                "https://docease.streamlit.app/", use_container_width=True
+            )
 
     # ---- Configurações ----
     with st.expander("⚙️ Configurações"):

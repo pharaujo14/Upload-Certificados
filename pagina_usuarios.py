@@ -97,7 +97,7 @@ def gerenciar_usuarios(db):
         with st.expander(f"✏️ Editar usuário: {usuario.get('username', '')}", expanded=True):
             novo_nome = st.text_input("Nome", value=usuario.get("nome", ""))
             novo_email = st.text_input("E-mail", value=usuario.get("username", ""))
-            nova_role = st.selectbox("Função", ["user", "admin", "viewer", "bdr"], index=["user", "admin", "viewer"].index(usuario.get("role", "user")))
+            nova_role = st.selectbox("Função", ["user", "admin", "viewer", "bdr", "account", "prevendas"], index=["user", "admin", "viewer", "bdr", "account", "prevendas"].index(usuario.get("role", "user")))
             nova_area = st.selectbox("Área", ["Comercial", "Operacional"], index=["Comercial", "Operacional"].index(usuario.get("area", "Comercial")))
 
             col1, col2 = st.columns(2)
@@ -134,7 +134,7 @@ def criar_usuario(db):
 
     with st.form("form_novo_usuario"):
         username = st.text_input("E-mail do Usuário")
-        role = st.selectbox("Função", ["user", "admin", "viewer", "bdr"])
+        role = st.selectbox("Função", ["user", "admin", "viewer", "bdr", "account", "prevendas"])
         area = st.selectbox("Área", ["Comercial", "Operacional"])
         adicionar_button = st.form_submit_button("Adicionar Usuário")
 

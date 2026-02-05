@@ -3,9 +3,13 @@ import bcrypt
 import json
 import os
 from streamlit_google_auth import Authenticate
+import tempfile
+import os
 
-
-GOOGLE_SECRET_FILE = "/tmp/google_oauth_client.json"
+GOOGLE_SECRET_FILE = os.path.join(
+    tempfile.gettempdir(),
+    "google_oauth_client.json"
+)
 
 
 def _ensure_google_oauth_file():

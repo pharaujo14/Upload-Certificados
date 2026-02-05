@@ -103,6 +103,47 @@ def login(db):
         st.experimental_rerun()
 
 
+    # ======================
+    # DISCLAIMER (discreto)
+    # ======================
+    st.markdown("---")
+
+    with st.expander("ℹ️ Sobre este aplicativo"):
+        st.markdown(
+            """
+            **Finalidade do Aplicativo**
+
+            Este aplicativo foi desenvolvido para **análise de performance comercial e gestão de resultados**, 
+            com foco em **equipes de vendas, BDRs e operações comerciais (RevOps)**.
+
+            A plataforma permite:
+            - Acompanhar métricas de desempenho ao longo do tempo  
+            - Calcular scores de performance normalizados  
+            - Visualizar indicadores de produtividade, eficiência e resultados comerciais  
+            - Apoiar decisões estratégicas com base em dados consolidados  
+
+            **Uso do Login com Google**
+
+            O login com Google é utilizado **exclusivamente para autenticação segura**, permitindo:
+            - Identificação individual do usuário  
+            - Acesso personalizado a dados e relatórios  
+            - Proteção das informações e controle de acesso  
+
+            Nenhuma informação pessoal é utilizada para fins publicitários ou compartilhada com terceiros.  
+            Os dados obtidos por meio da autenticação são usados **somente para funcionamento interno do aplicativo**.
+
+            **Público-alvo**
+            - Profissionais de vendas  
+            - Líderes comerciais  
+            - Gestores de RevOps  
+            - Analistas de performance e operações
+            """
+        )
+
+    st.caption(
+        "© Century Data — Plataforma interna de análise de performance comercial."
+    )
+
 # ======================
 # SESSION HELPERS
 # ======================

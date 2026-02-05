@@ -88,7 +88,7 @@ with st.sidebar:
             )
 
     # ----- DocEase -----
-        with st.expander("🤑 DocEase"):
+        with st.expander("🤑 Envio de NF / Reembolso"):
             st.link_button(
                 "Abrir DocEase",
                 "https://docease.streamlit.app/", use_container_width=True

@@ -11,6 +11,15 @@ from charts.funnels import funnel_chart
 from data.loader import get_descartados_valores_em_real
 from data.score import compute_bdr_performance_score
 
+def classificar_performance(score: float) -> str:
+    if score >= 0.75:
+        return "Excelente"
+    elif 0.60 <= score < 0.75:
+        return "Boa"
+    elif 0.45 <= score < 0.60:
+        return "Regular"
+    else:
+        return "Atenção"
 
 def render_executive_dashboard(df: pd.DataFrame):
     """
@@ -22,13 +31,44 @@ def render_executive_dashboard(df: pd.DataFrame):
     
     # === Score de Performance do BDR ===
     st.subheader("🏆 Score de Performance do BDR")
+
     try:
         score_df = compute_bdr_performance_score(df)
-        # Remover colunas de Ano e Mes para exibição (normalizadas sem acento)
-        score_display = score_df.drop(columns=['Ano', 'Mes'], errors='ignore')
-        # Mostrar tabela sem período
-        st.write("Score de Performance por BDR:")
-        st.dataframe(score_display, use_container_width=True, height=300)
+
+        # Garantir coluna de semana
+        if "Semana 1º contato" in df.columns:
+            score_df["Semana"] = df["Semana 1º contato"].dt.strftime("%d/%m/%Y")
+        elif "Semana" not in score_df.columns:
+            score_df["Semana"] = "—"
+
+        # Padronizar coluna de score
+        score_df = score_df.rename(
+            columns={"Score de Performance": "Score"}
+        )
+
+        # Criar coluna de Performance (faixa)
+        score_df["Performance"] = score_df["Score"].apply(classificar_performance)
+
+        # Selecionar e ordenar colunas finais
+        score_display = score_df[
+            ["Semana", "BDR", "Score", "Performance"]
+        ].sort_values(
+            by=["Semana", "Score"],
+            ascending=[True, False]
+        )
+
+        # REMOVER ÍNDICE
+        score_display = score_display.reset_index(drop=True)
+
+        score_display["Score"] = score_display["Score"].apply(lambda x: f"{x:.2%}")
+
+        st.dataframe(
+            score_display,
+            use_container_width=True,
+            height=350,
+            hide_index=True
+        )
+
     except Exception as e:
         st.error(f"Não foi possível calcular o Score de Performance: {e}")
 

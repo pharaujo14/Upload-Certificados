@@ -1,70 +1,77 @@
 import streamlit as st
 import bcrypt
-import json
-import os
-from streamlit_google_auth import Authenticate
-import tempfile
-import os
+from authlib.integrations.requests_client import OAuth2Session
 
-GOOGLE_SECRET_FILE = os.path.join(
-    tempfile.gettempdir(),
-    "google_oauth_client.json"
-)
+# ======================
+# CONFIG GOOGLE OAUTH
+# ======================
+CLIENT_ID = st.secrets["google_oauth"]["client_id"]
+CLIENT_SECRET = st.secrets["google_oauth"]["client_secret"]
+REDIRECT_URI = st.secrets["google_oauth"]["redirect_uri"]
+
+AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
 
-def _ensure_google_oauth_file():
-    """
-    Cria o arquivo JSON de credenciais do Google OAuth
-    a partir do secrets.toml (se ainda não existir).
-    """
-    google_oauth = {
-        "web": {
-            "client_id": st.secrets["google_oauth"]["client_id"],
-            "client_secret": st.secrets["google_oauth"]["client_secret"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [st.secrets["google_oauth"]["redirect_uri"]],
-        }
-    }
+# ======================
+# GOOGLE CALLBACK
+# ======================
+def google_callback():
+    query_params = st.experimental_get_query_params()
 
-    with open(GOOGLE_SECRET_FILE, "w") as f:
-        json.dump(google_oauth, f)
+    if "code" not in query_params:
+        return
 
-    return GOOGLE_SECRET_FILE
+    code = query_params["code"][0]
+
+    oauth = OAuth2Session(
+        CLIENT_ID,
+        CLIENT_SECRET,
+        scope="openid email profile",
+        redirect_uri=REDIRECT_URI,
+    )
+
+    oauth.fetch_token(TOKEN_URL, code=code)
+    userinfo = oauth.get(USERINFO_URL).json()
+
+    st.session_state.google_user = userinfo
+
+    # limpa ?code da URL
+    st.experimental_set_query_params()
 
 
 # ======================
 # LOGIN
 # ======================
 def login(db):
+    # ======================
+    # INIT STATE (ANTES DE TUDO)
+    # ======================
+    if "google_user" not in st.session_state:
+        st.session_state.google_user = None
+
+    # ======================
+    # CALLBACK PRIMEIRO
+    # ======================
+    google_callback()
+
     st.image("logo_site.png", use_column_width=True)
     st.title("Login")
 
     users_collection = db["users"]
 
     # ======================
-    # LOGIN COM GOOGLE (SSO)
+    # SE JÁ LOGOU COM GOOGLE
     # ======================
-    secret_file = _ensure_google_oauth_file()
-    redirect_uri = st.secrets["google_oauth"]["redirect_uri"]
-
-    auth = Authenticate(
-        secret_credentials_path=secret_file,
-        redirect_uri=redirect_uri,
-        cookie_name="google_auth",
-        cookie_key="random_cookie_key",
-    )
-
-    auth_info = auth.login("Entrar com Google", "main")
-
-    if auth_info:
-        email = auth_info.get("email")
+    if st.session_state.google_user:
+        email = st.session_state.google_user.get("email")
 
         user_data = users_collection.find_one({"email": email})
 
         if not user_data:
             st.error("Seu e-mail não possui acesso ao sistema.")
-            auth.logout("Logout", "sidebar")
+            st.session_state.google_user = None
             return
 
         if not user_data.get("ativo", True):
@@ -73,6 +80,21 @@ def login(db):
 
         _set_session(user_data)
         st.experimental_rerun()
+
+    # ======================
+    # BOTÃO GOOGLE
+    # (SÓ SE NÃO HOUVER ?code NA URL)
+    # ======================
+    query_params = st.experimental_get_query_params()
+    if "code" not in query_params:
+        oauth = OAuth2Session(
+            CLIENT_ID,
+            CLIENT_SECRET,
+            scope="openid email profile",
+            redirect_uri=REDIRECT_URI,
+        )
+        auth_url, _ = oauth.create_authorization_url(AUTH_URL)
+        st.markdown(f"[Entrar com Google]({auth_url})")
 
     st.markdown("---")
 
@@ -102,47 +124,22 @@ def login(db):
         _set_session(user_data)
         st.experimental_rerun()
 
-
     # ======================
-    # DISCLAIMER (discreto)
+    # DISCLAIMER
     # ======================
     st.markdown("---")
-
     with st.expander("ℹ️ Sobre este aplicativo"):
         st.markdown(
             """
             **Finalidade do Aplicativo**
 
-            Este aplicativo foi desenvolvido para **análise de performance comercial e gestão de resultados**, 
-            com foco em **equipes de vendas, BDRs e operações comerciais (RevOps)**.
-
-            A plataforma permite:
-            - Acompanhar métricas de desempenho ao longo do tempo  
-            - Calcular scores de performance normalizados  
-            - Visualizar indicadores de produtividade, eficiência e resultados comerciais  
-            - Apoiar decisões estratégicas com base em dados consolidados  
-
-            **Uso do Login com Google**
-
-            O login com Google é utilizado **exclusivamente para autenticação segura**, permitindo:
-            - Identificação individual do usuário  
-            - Acesso personalizado a dados e relatórios  
-            - Proteção das informações e controle de acesso  
-
-            Nenhuma informação pessoal é utilizada para fins publicitários ou compartilhada com terceiros.  
-            Os dados obtidos por meio da autenticação são usados **somente para funcionamento interno do aplicativo**.
-
-            **Público-alvo**
-            - Profissionais de vendas  
-            - Líderes comerciais  
-            - Gestores de RevOps  
-            - Analistas de performance e operações
+            Plataforma interna de análise de performance comercial,
+            com autenticação segura via Google ou login tradicional.
             """
         )
 
-    st.caption(
-        "© Century Data — Plataforma interna de análise de performance comercial."
-    )
+    st.caption("© Century Data — Plataforma interna de análise de performance comercial.")
+
 
 # ======================
 # SESSION HELPERS

@@ -65,9 +65,9 @@ def login(db):
     # SE JÁ LOGOU COM GOOGLE
     # ======================
     if st.session_state.google_user:
-        email = st.session_state.google_user.get("email")
+        email = st.session_state.google_user.get("email", "").lower()
 
-        user_data = users_collection.find_one({"email": email})
+        user_data = users_collection.find_one({"username": email})
 
         if not user_data:
             st.error("Seu e-mail não possui acesso ao sistema.")

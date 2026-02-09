@@ -1,5 +1,4 @@
 import streamlit as st
-import bcrypt
 from authlib.integrations.requests_client import OAuth2Session
 
 # ======================
@@ -45,8 +44,9 @@ def google_callback():
 # LOGIN
 # ======================
 def login(db):
+
     # ======================
-    # INIT STATE (ANTES DE TUDO)
+    # INIT STATE
     # ======================
     if "google_user" not in st.session_state:
         st.session_state.google_user = None
@@ -56,33 +56,57 @@ def login(db):
     # ======================
     google_callback()
 
-    # CSS que você já validou
+    # ======================
+    # CSS GLOBAL
+    # ======================
     st.markdown(
         """
         <style>
             .block-container {
-                padding-top: 0.5rem !important;
-            }
-
-            div[data-testid="stImage"] {
-                margin-top: -100px !important;
-                margin-bottom: -120px !important;
+                padding-top: 1rem !important;
             }
 
             h1 {
                 margin-top: 0 !important;
-                margin-bottom: 1rem !important;
+                margin-bottom: 1.5rem !important;
+            }
+
+            .google-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 14px;
+                background-color: #ffffff;
+                color: #3c4043;
+                border: 1px solid #dadce0;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background-color 0.2s, box-shadow 0.2s;
+            }
+
+            .google-btn:hover {
+                background-color: #f7f8f8;
+                box-shadow: 0 1px 2px rgba(60,64,67,.3),
+                            0 1px 3px 1px rgba(60,64,67,.15);
+            }
+
+            .google-btn img {
+                width: 18px;
+                height: 18px;
             }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # 🔹 SOMENTE o logo centralizado
+    # ======================
+    # LOGO
+    # ======================
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        st.image("logo_site.png", use_column_width=True)
-
+        st.image("logo_site.png", width=400)
 
     st.title("Login")
 
@@ -109,8 +133,7 @@ def login(db):
         st.experimental_rerun()
 
     # ======================
-    # BOTÃO GOOGLE
-    # (SÓ SE NÃO HOUVER ?code NA URL)
+    # BOTÃO GOOGLE (MESMA ABA)
     # ======================
     query_params = st.experimental_get_query_params()
     if "code" not in query_params:
@@ -121,85 +144,29 @@ def login(db):
             redirect_uri=REDIRECT_URI,
         )
         auth_url, _ = oauth.create_authorization_url(AUTH_URL)
+
         st.markdown(
             f"""
-            <style>
-                .google-btn {{
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 10px 14px;
-                    background-color: #ffffff;
-                    color: #3c4043;
-                    border: 1px solid #dadce0;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    text-decoration: none;
-                    cursor: pointer;
-                    transition: background-color 0.2s, box-shadow 0.2s;
-                    width: auto;          /* 🔹 não ocupa a linha toda */
-                }}
-
-                .google-btn:hover {{
-                    background-color: #f7f8f8;
-                    box-shadow: 0 1px 2px rgba(60,64,67,.3),
-                                0 1px 3px 1px rgba(60,64,67,.15);
-                }}
-
-                .google-btn img {{
-                    width: 18px;
-                    height: 18px;
-                }}
-            </style>
-
-            <a class="google-btn" href="{auth_url}">
+            <button class="google-btn" onclick="window.location.href='{auth_url}'">
                 <img src="https://developers.google.com/identity/images/g-logo.png">
                 Entrar com Google
-            </a>
+            </button>
             """,
             unsafe_allow_html=True
         )
 
-    st.markdown("---")
-
-    # ======================
-    # LOGIN TRADICIONAL
-    # ======================
-    # with st.form("login_form"):
-    #     username = st.text_input("Usuário")
-    #     password = st.text_input("Senha", type="password")
-    #     submit = st.form_submit_button("Entrar")
-
-    # if submit:
-    #     user_data = users_collection.find_one({"username": username})
-
-    #     if not user_data:
-    #         st.error("Usuário ou senha incorretos.")
-    #         return
-
-    #     if not user_data.get("ativo", True):
-    #         st.error("Usuário inativado. Contate o administrador.")
-    #         return
-
-    #     if not bcrypt.checkpw(password.encode(), user_data["password"]):
-    #         st.error("Usuário ou senha incorretos.")
-    #         return
-
-    #     _set_session(user_data)
-    #     st.experimental_rerun()
-
     # ======================
     # DISCLAIMER
     # ======================
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
+
     with st.expander("ℹ️ Sobre este aplicativo"):
         st.markdown(
             """
             **Finalidade do Aplicativo**
 
             Plataforma interna de análise de performance comercial,
-            com autenticação segura via Google ou login tradicional.
+            com autenticação exclusiva via Google.
             """
         )
 

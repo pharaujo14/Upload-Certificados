@@ -106,6 +106,9 @@ def login(db):
     # ======================
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
+        st.write("")
+        st.write("")
+        st.write("")
         st.image("logo_site.png", width=400)
 
     st.title("Login")

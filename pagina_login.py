@@ -82,8 +82,8 @@ def login(db):
                 border-radius: 4px;
                 font-size: 14px;
                 font-weight: 500;
+                text-decoration: none;
                 cursor: pointer;
-                transition: background-color 0.2s, box-shadow 0.2s;
             }
 
             .google-btn:hover {
@@ -133,7 +133,7 @@ def login(db):
         st.experimental_rerun()
 
     # ======================
-    # BOTÃO GOOGLE (MESMA ABA)
+    # BOTÃO GOOGLE
     # ======================
     query_params = st.experimental_get_query_params()
     if "code" not in query_params:
@@ -143,34 +143,18 @@ def login(db):
             scope="openid email profile",
             redirect_uri=REDIRECT_URI,
         )
+
         auth_url, _ = oauth.create_authorization_url(AUTH_URL)
 
         st.markdown(
             f"""
-            <button class="google-btn" onclick="window.location.href='{auth_url}'">
+            <a class="google-btn" href="{auth_url}">
                 <img src="https://developers.google.com/identity/images/g-logo.png">
                 Entrar com Google
-            </button>
+            </a>
             """,
             unsafe_allow_html=True
         )
-
-    # ======================
-    # DISCLAIMER
-    # ======================
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    with st.expander("ℹ️ Sobre este aplicativo"):
-        st.markdown(
-            """
-            **Finalidade do Aplicativo**
-
-            Plataforma interna de análise de performance comercial,
-            com autenticação exclusiva via Google.
-            """
-        )
-
-    st.caption("© Century Data — Plataforma interna de análise de performance comercial.")
 
 
 # ======================

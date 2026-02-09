@@ -7,7 +7,6 @@ from utils.conectaBanco import conectaBanco
 from pagina_login import login, is_authenticated
 
 from pagina_usuarios import gerenciar_usuarios
-from pagina_trocarSenha import trocar_senha
 from pagina_ferramentas import pagina_ferramentas
 from pagina_upload_certificados import pagina_upload
 from pagina_relatorios import pagina_relatorios
@@ -95,14 +94,10 @@ with st.sidebar:
             )
 
     # ---- Configurações ----
-    with st.expander("⚙️ Configurações"):
-        if st.button("Trocar senha", use_container_width=True):
-            st.session_state["page"] = "trocar_senha"
-
-        if user_role == "admin":
+    if user_role == "admin":
+        with st.expander("⚙️ Configurações"):
             if st.button("Controle de usuários", use_container_width=True):
                 st.session_state["page"] = "usuarios"
-
 
 # ======================
 # ROTEAMENTO
@@ -137,10 +132,6 @@ elif page == "ferramentas":
         pagina_ferramentas(db)
     else:
         st.warning("Você não tem permissão para acessar esta aba.")
-
-# ---- Configurações ----
-elif page == "trocar_senha":
-    trocar_senha(db)
 
 elif page == "usuarios":
     if user_role == "admin":

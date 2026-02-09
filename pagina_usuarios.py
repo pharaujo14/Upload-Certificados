@@ -1,7 +1,6 @@
 import streamlit as st
-import bcrypt
 
-from utils.auxiliar import validar_email, formatar_nome, gerar_senha_automatica
+from utils.auxiliar import validar_email, formatar_nome
 from utils.email_utils import gerar_email_institucional, enviar_resultado
 
 def badge(text, color):
@@ -50,7 +49,7 @@ def gerenciar_usuarios(db):
                     """, unsafe_allow_html=True
                 )
                 
-                col1, col2, col3 = st.columns([1,1,1])
+                col1, col2 = st.columns([1,1])
 
                 with col1:
                     if st.button("✏️ Editar", key=f"editar_{usuario['_id']}"):
@@ -64,30 +63,6 @@ def gerenciar_usuarios(db):
                         )
                         st.success("Status do usuário atualizado.")
                         st.experimental_rerun()
-
-                with col3:
-                    if st.button("🔑 Resetar Senha", key=f"reset_{usuario['_id']}"):
-                        nova_senha = gerar_senha_automatica()
-                        hashed_password = bcrypt.hashpw(nova_senha.encode("utf-8"), bcrypt.gensalt())
-                        users_collection.update_one(
-                            {"_id": usuario["_id"]},
-                            {"$set": {"password": hashed_password}}
-                        )
-
-                        body = gerar_email_institucional("redefinir_senha", {
-                            "nome": usuario.get("nome", ""),
-                            "senha": nova_senha,
-                            "link_sistema": "https://centurydata.streamlit.app/"
-                        })
-
-                        subject = "🔑 Redefinição de senha - Century Data"
-                        sender = st.secrets['smtp']['sender']
-                        recipient = usuario.get("username", "")
-                        password_smtp = st.secrets['smtp']['password']
-
-                        enviar_resultado(subject, body, sender, [recipient], password_smtp, html=True)
-
-                        st.success("Senha redefinida e enviada por e-mail.")
     else:
         st.info("Nenhum usuário encontrado.")
 
@@ -141,35 +116,35 @@ def criar_usuario(db):
     if adicionar_button:
         if not validar_email(username):
             st.warning("O e-mail não é válido.")
-        elif users_collection.find_one({"username": username}):
+            return
+
+        if users_collection.find_one({"username": username}):
             st.warning("O e-mail já está em uso.")
-        else:
-            senha_gerada = gerar_senha_automatica()
-            nome_formatado = formatar_nome(username)
-            hashed_password = bcrypt.hashpw(senha_gerada.encode("utf-8"), bcrypt.gensalt())
+            return
 
-            users_collection.insert_one({
-                "username": username,
-                "password": hashed_password,
-                "role": role,
-                "area": area,
-                "nome": nome_formatado,
-                "ativo": True
-            })
+        nome_formatado = formatar_nome(username)
 
-            # Gerar e-mail institucional
-            body = gerar_email_institucional("criar_usuario", {
-                "nome": nome_formatado,
-                "username": username,
-                "senha": senha_gerada,
-                "link_sistema": "https://centurydata.streamlit.app/"
-            })
+        users_collection.insert_one({
+            "username": username.lower(),
+            "role": role,
+            "area": area,
+            "nome": nome_formatado,
+            "ativo": True,
+            "auth_provider": "google"  # 🔹 deixa explícito
+        })
 
-            subject = "Seus dados de acesso - Century Data"
-            sender = st.secrets['smtp']['sender']
-            recipient = username
-            password = st.secrets['smtp']['password']
+        # E-mail institucional (sem senha)
+        body = gerar_email_institucional("criar_usuario", {
+            "nome": nome_formatado,
+            "username": username,
+            "link_sistema": "https://centurydata.streamlit.app/"
+        })
 
-            enviar_resultado(subject, body, sender, [recipient], password, html=True)
+        subject = "Acesso liberado - Century Data"
+        sender = st.secrets['smtp']['sender']
+        recipient = username
+        password = st.secrets['smtp']['password']
 
-            st.success(f"Usuário {username} criado e senha enviada por e-mail!")
+        enviar_resultado(subject, body, sender, [recipient], password, html=True)
+
+        st.success(f"Usuário {username} criado com acesso via Google.")

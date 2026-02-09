@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 def gerar_email_institucional(tipo, dados):
-    link_sistema = dados.get("link_sistema", "https://centurydata-certificados.streamlit.app/")
+    link_sistema = dados.get("link_sistema", "https://centurydata.streamlit.app/")
 
     header = f"""
     <div style='background-color:#004080; padding:20px; text-align:center;'>
@@ -21,9 +21,7 @@ def gerar_email_institucional(tipo, dados):
         <h2 style='color:#004080;'>🚀 Sua conta foi criada</h2>
         <p>Olá <strong>{dados['nome']}</strong>,</p>
         <p>Seu acesso ao sistema Century Data foi criado com sucesso!</p>
-        <p><b>Usuário:</b> {dados['username']}<br>
-        <b>Senha Provisória:</b> {dados['senha']}</p>
-        <p style='font-size:13px; color:#666;'>Recomendamos trocar sua senha após o primeiro login.</p>
+        <p style='font-size:13px; color:#666;'>Seu login é realizado pela conta de email coorporativo.</p>
         <a href='{link_sistema}' style='display:inline-block; padding:10px 20px; background:#004080; color:#fff; text-decoration:none; border-radius:5px; margin-top:15px;'>Acessar o Sistema</a>
         """
 
@@ -32,16 +30,6 @@ def gerar_email_institucional(tipo, dados):
         <h2 style='color:#004080;'>📄 Novo Certificado Enviado</h2>
         <p>O usuário <strong>{dados['nome']}</strong> realizou o upload de um novo certificado.</p>
         <p><b>Arquivo:</b> {dados['arquivo']}</p>
-        """
-
-    elif tipo == "redefinir_senha":
-        body = f"""
-        <h2 style='color:#004080;'>🔑 Redefinição de Senha</h2>
-        <p>Olá <strong>{dados['nome']}</strong>,</p>
-        <p>Conforme solicitado, sua senha foi redefinida.</p>
-        <p><b>Nova Senha:</b> {dados['senha']}</p>
-        <p>Por segurança, altere sua senha assim que possível.</p>
-        <a href='{link_sistema}' style='display:inline-block; padding:10px 20px; background:#004080; color:#fff; text-decoration:none; border-radius:5px; margin-top:15px;'>Acessar o Sistema</a>
         """
 
     elif tipo == "notificacao":

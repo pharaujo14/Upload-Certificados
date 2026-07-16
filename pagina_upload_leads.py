@@ -95,6 +95,26 @@ def upsert_generic_by_email(col: Collection, email: str, payload: dict, fonte: s
         return "inserted"
     return "updated"
 
+# ---------- Modal de resultado final ----------
+@st.dialog("Resultado do processamento")
+def dialog_resultado(inserted: int, updated: int, skipped: int, erros: list):
+    st.write(f"**Novos:** {inserted}")
+    st.write(f"**Atualizados/Consolidados:** {updated}")
+    st.write(f"**Ignorados (sem e-mail ou com erro):** {skipped}")
+
+    if erros:
+        st.divider()
+        st.error(f"⚠️ {len(erros)} erro(s) encontrado(s) durante o processamento:")
+        for e in erros[:20]:
+            st.write(f"- Linha {e['linha']} (email: `{e.get('email') or '-'}`): {e['erro']}")
+        if len(erros) > 20:
+            st.caption(f"... e mais {len(erros) - 20} erro(s) não exibido(s).")
+    else:
+        st.success("✅ Nenhum erro durante o processamento.")
+
+    if st.button("OK", use_container_width=True, type="primary"):
+        st.rerun()
+
 # ---------- Página Streamlit ----------
 def pagina_upload_leads(db):
     st.markdown("## Upload de Leads (CSV/XLSX)")
@@ -144,32 +164,44 @@ def pagina_upload_leads(db):
 
     leads_col = get_collection(db, "sapinho", "leads")
 
+    total = len(df)
     inserted = updated = skipped = 0
+    erros = []
     cols_norm = {c: norm_header(c) for c in df.columns}  # nomes normalizados para gravar no Mongo
 
-    for _, row in df.iterrows():
+    progress_bar = st.progress(0, text=f"Iniciando processamento... 0/{total} (0%)")
+
+    for i, (_, row) in enumerate(df.iterrows(), start=1):
         email = val_as_scalar(row[email_col])
-        if not email:
-            skipped += 1
-            continue
-        email = email.lower()
-
-        # Monta payload com TODAS as colunas, normalizando nomes e limpando valores
-        payload = {}
-        for original_col, norm_col in cols_norm.items():
-            if norm_col == "email":
-                payload["email"] = email
+        try:
+            if not email:
+                skipped += 1
             else:
-                payload[norm_col] = val_as_scalar(row[original_col])
+                email = email.lower()
 
-        status = upsert_generic_by_email(leads_col, email, payload, fonte)
-        if status == "inserted":
-            inserted += 1
-        elif status == "updated":
-            updated += 1
-        else:
+                # Monta payload com TODAS as colunas, normalizando nomes e limpando valores
+                payload = {}
+                for original_col, norm_col in cols_norm.items():
+                    if norm_col == "email":
+                        payload["email"] = email
+                    else:
+                        payload[norm_col] = val_as_scalar(row[original_col])
+
+                status = upsert_generic_by_email(leads_col, email, payload, fonte)
+                if status == "inserted":
+                    inserted += 1
+                elif status == "updated":
+                    updated += 1
+                else:
+                    skipped += 1
+        except Exception as e:
             skipped += 1
+            erros.append({"linha": i, "email": email, "erro": str(e)})
 
-    st.success("Processamento concluído.")
-    st.write(f"**Novos:** {inserted} | **Atualizados/Consolidados:** {updated} | **Ignorados (sem e-mail):** {skipped}")
-    st.info("Consolidação: todas as colunas viram listas de valores únicos por e-mail. A **fonte** desta carga é anexada ao contato e registrada no histórico (`uploads`).")
+        pct = i / total
+        progress_bar.progress(pct, text=f"Processando... {i}/{total} ({pct * 100:.0f}%)")
+
+    progress_bar.progress(1.0, text=f"Processamento concluído! {total}/{total} (100%)")
+
+    # Abre o modal final com o resumo (e erros, se houver)
+    dialog_resultado(inserted, updated, skipped, erros)

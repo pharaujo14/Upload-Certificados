@@ -63,26 +63,26 @@ with st.sidebar:
     # -------- BDRs --------
     if user_role in ["viewer", "admin", "bdr"]:
         with st.expander("📊 BDRs", expanded=True):
-            if st.button("Dashboard", use_container_width=True):
+            if st.button("Dashboard", use_container_width=True, key="btn_bdr_dashboard"):
                 st.session_state["page"] = "bdr_dashboard"
                 
     # -------- Leads --------
     if user_role in ["admin"]:
         with st.expander("📊 Leads", expanded=True):
-            if st.button("Fazer upload", use_container_width=True):
+            if st.button("Fazer upload", use_container_width=True, key="btn_leads_upload"):
                 st.session_state["page"] = "leads"
 
     # ----- Certificados -----
     with st.expander("📁 Certificados"):
-        if st.button("Fazer upload", use_container_width=True):
+        if st.button("Fazer upload", use_container_width=True, key="btn_cert_upload"):
             st.session_state["page"] = "upload"
             
         if user_role in ["viewer", "admin"]:
-            if st.button("Relatórios", use_container_width=True):
+            if st.button("Relatórios", use_container_width=True, key="btn_cert_relatorios"):
                 st.session_state["page"] = "relatorios_certificados"
 
         if user_role == "admin":
-            if st.button("Controle de Ferramentas", use_container_width=True):
+            if st.button("Controle de Ferramentas", use_container_width=True, key="btn_cert_ferramentas"):
                 st.session_state["page"] = "ferramentas"
                 
     # ----- Calculadora -----
@@ -103,9 +103,9 @@ with st.sidebar:
     # ---- Configurações ----
     if user_role == "admin":
         with st.expander("⚙️ Configurações"):
-            if st.button("Controle de usuários", use_container_width=True):
+            if st.button("Controle de usuários", use_container_width=True, key="btn_config_usuarios"):
                 st.session_state["page"] = "usuarios"
-
+                
 # ======================
 # ROTEAMENTO
 # ======================

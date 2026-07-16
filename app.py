@@ -68,7 +68,7 @@ with st.sidebar:
                 
     # -------- Leads --------
     if user_role in ["admin"]:
-        with st.expander("📊 Leads", expanded=True):
+        with st.expander("📈 Leads", expanded=True):
             if st.button("Fazer upload", use_container_width=True, key="btn_leads_upload"):
                 st.session_state["page"] = "leads"
 

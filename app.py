@@ -12,6 +12,7 @@ from pagina_upload_certificados import pagina_upload
 from pagina_relatorios import pagina_relatorios
 from pagina_relatorios_bdr_executivo import pagina_relatorios_bdr_executivo
 from pagina_relatorios_bdr_operacional import pagina_relatorios_bdr_operacional
+from pagina_upload_leads import pagina_upload_leads
 
 # ======================
 # Configurações iniciais
@@ -64,6 +65,12 @@ with st.sidebar:
         with st.expander("📊 BDRs", expanded=True):
             if st.button("Dashboard", use_container_width=True):
                 st.session_state["page"] = "bdr_dashboard"
+                
+    # -------- Leads --------
+    if user_role in ["admin"]:
+        with st.expander("📊 Leads", expanded=True):
+            if st.button("Fazer upload", use_container_width=True):
+                st.session_state["page"] = "leads"
 
     # ----- Certificados -----
     with st.expander("📁 Certificados"):
@@ -117,6 +124,13 @@ if page == "bdr_dashboard":
     else:
         pagina_relatorios_bdr_operacional(db)
 
+# -------- Leads --------
+elif page == "leads":
+    if user_role in ["viewer", "admin"]:
+        pagina_upload_leads(db)
+    else:
+        st.warning("Você não tem permissão para acessar esta aba.")
+        
 # ----- Certificados -----
 elif page == "upload":
     pagina_upload(user_name, user_area)

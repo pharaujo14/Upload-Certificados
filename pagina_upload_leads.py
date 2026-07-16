@@ -95,30 +95,40 @@ def upsert_generic_by_email(col: Collection, email: str, payload: dict, fonte: s
         return "inserted"
     return "updated"
 
-# ---------- Modal de resultado final ----------
-@st.dialog("Resultado do processamento")
-def dialog_resultado(inserted: int, updated: int, skipped: int, erros: list):
-    st.write(f"**Novos:** {inserted}")
-    st.write(f"**Atualizados/Consolidados:** {updated}")
-    st.write(f"**Ignorados (sem e-mail ou com erro):** {skipped}")
+# ---------- Resumo final (sem depender de st.dialog) ----------
+def mostrar_resultado(inserted: int, updated: int, skipped: int, erros: list):
+    st.toast("Processamento concluído!", icon="✅")
 
-    if erros:
-        st.divider()
-        st.error(f"⚠️ {len(erros)} erro(s) encontrado(s) durante o processamento:")
-        for e in erros[:20]:
-            st.write(f"- Linha {e['linha']} (email: `{e.get('email') or '-'}`): {e['erro']}")
-        if len(erros) > 20:
-            st.caption(f"... e mais {len(erros) - 20} erro(s) não exibido(s).")
-    else:
-        st.success("✅ Nenhum erro durante o processamento.")
+    with st.container(border=True):
+        st.markdown("### 📋 Resultado do processamento")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Novos", inserted)
+        c2.metric("Atualizados", updated)
+        c3.metric("Ignorados", skipped)
 
-    if st.button("OK", use_container_width=True, type="primary"):
-        st.rerun()
+        if erros:
+            st.error(f"⚠️ {len(erros)} erro(s) encontrado(s) durante o processamento:")
+            for e in erros[:20]:
+                st.write(f"- Linha {e['linha']} (email: `{e.get('email') or '-'}`): {e['erro']}")
+            if len(erros) > 20:
+                st.caption(f"... e mais {len(erros) - 20} erro(s) não exibido(s).")
+        else:
+            st.success("✅ Nenhum erro durante o processamento.")
+
+        if st.button("OK, entendi", type="primary"):
+            st.session_state.pop("resultado_upload", None)
+            st.rerun()
 
 # ---------- Página Streamlit ----------
 def pagina_upload_leads(db):
     st.markdown("## Upload de Leads (CSV/XLSX)")
     st.write("Envie a planilha com uma coluna de **e-mail** (ex.: email, e-mail, e_mail, mail). Todas as demais colunas serão consolidadas no mesmo lead.")
+
+    # Se há um resultado pendente de uma execução anterior, mostra antes de tudo
+    if "resultado_upload" in st.session_state:
+        r = st.session_state["resultado_upload"]
+        mostrar_resultado(r["inserted"], r["updated"], r["skipped"], r["erros"])
+        st.divider()
 
     with st.form("form_upload_leads", clear_on_submit=False):
         fonte = st.text_input("Fonte (obrigatório)", placeholder="Ex.: ABRAS 2025 • Lista palestrantes • Landing X")
@@ -203,5 +213,11 @@ def pagina_upload_leads(db):
 
     progress_bar.progress(1.0, text=f"Processamento concluído! {total}/{total} (100%)")
 
-    # Abre o modal final com o resumo (e erros, se houver)
-    dialog_resultado(inserted, updated, skipped, erros)
+    # Guarda o resultado e recarrega a página para mostrar o resumo destacado no topo
+    st.session_state["resultado_upload"] = {
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "erros": erros,
+    }
+    st.rerun()

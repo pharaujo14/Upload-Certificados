@@ -1,5 +1,5 @@
 # pagina_busca_e_edicao_leads_campos.py
-import os, sys, logging, traceback
+import os
 import streamlit as st
 from datetime import datetime, timezone
 from pymongo.collection import Collection
@@ -9,29 +9,6 @@ from bson.regex import Regex
 from bson import ObjectId
 
 PROTECTED_FIELDS = {"_id", "email", "created_at", "updated_at", "fonte"}
-
-# ---------- LOG ----------
-logger = logging.getLogger("sapinho.leads")
-logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    h = logging.StreamHandler(sys.stdout)
-    h.setLevel(logging.DEBUG)
-    h.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s"))
-    logger.addHandler(h)
-
-def ui_log(msg, data=None, level="info"):
-    text = f"{msg}" + (f" | {data}" if data is not None else "")
-    getattr(logger, level if level in ("debug","info","warning","error") else "info")(text)
-    st.session_state.setdefault("_debug_buf", []).append(text)
-
-def debug_panel():
-    with st.expander("🔎 Debug / Logs desta página", expanded=False):
-        buf = st.session_state.get("_debug_buf", [])
-        if buf: st.code("\n".join(buf))
-        else:   st.caption("Sem mensagens.")
-        if st.button("Limpar logs"):
-            st.session_state["_debug_buf"] = []
-            st.rerun()
 
 # ---------- Mongo ----------
 def get_collection(db_or_col, db_name: str, col_name: str) -> Collection:
@@ -145,6 +122,27 @@ def update_lead_by_id_or_email(leads_col: Collection, doc, to_set: dict, to_unse
 
     return {"matched": 0, "modified": 0, "method": "none"}
 
+def delete_lead_by_id_or_email(leads_col: Collection, doc):
+    """
+    Exclui o lead por _id (robusto a str/ObjectId) e, se não casar,
+    tenta por email escalar. Retorna dict com deleted_count/method.
+    """
+    id_filter = _build_id_filter(doc.get("_id"))
+    res = leads_col.delete_one(id_filter)
+    if res.deleted_count:
+        return {"deleted": res.deleted_count, "method": "by_id"}
+
+    email_val = doc.get("email")
+    if isinstance(email_val, list):
+        email_val = email_val[0] if email_val else None
+    if isinstance(email_val, str):
+        email_val = email_val.strip().lower()
+    if email_val:
+        res = leads_col.delete_one({"email": email_val})
+        return {"deleted": res.deleted_count, "method": "by_email"}
+
+    return {"deleted": 0, "method": "none"}
+
 # ---------- Página ----------
 def pagina_busca_leads(db):
     st.markdown("## Busca e Edição de Leads")
@@ -152,8 +150,6 @@ def pagina_busca_leads(db):
 
     leads_col = get_collection(db, "sapinho", "leads")
     logs_col  = get_collection(db, "sapinho", "logs")
-
-    auto_rerun = st.checkbox("Rerrodar após salvar", value=False)
 
     # Busca
     with st.form("form_busca_leads", clear_on_submit=False):
@@ -167,12 +163,10 @@ def pagina_busca_leads(db):
         submitted = st.form_submit_button("Buscar")
 
     # ----------------------------------------------------------------
-    # FIX PRINCIPAL: o app inteiro re-executa a cada clique (paginação,
-    # salvar, cancelar, testar), e nesses re-runs `submitted` volta a
-    # ser False. Antes disso fazia a função `return` imediatamente,
-    # perdendo a busca. Agora guardamos os critérios em session_state
-    # e SÓ atualizamos quando o form de busca é de fato submetido;
-    # em qualquer outro rerun, reaproveitamos o que já está salvo.
+    # Os critérios de busca ficam guardados em session_state e só são
+    # atualizados quando o form de busca é de fato submetido. Assim,
+    # cliques em paginação/salvar/excluir (que reexecutam o app inteiro)
+    # não perdem a busca corrente.
     # ----------------------------------------------------------------
     if "lead_page" not in st.session_state:
         st.session_state.lead_page = 1
@@ -192,7 +186,6 @@ def pagina_busca_leads(db):
     criteria = st.session_state.search_criteria
     if criteria is None:
         # Nunca buscou nesta sessão ainda.
-        debug_panel()
         return
 
     ors = []
@@ -215,7 +208,6 @@ def pagina_busca_leads(db):
 
     if not docs:
         st.info("Nenhum lead encontrado.")
-        debug_panel()
         return
 
     # Resultado da última operação por doc
@@ -225,6 +217,7 @@ def pagina_busca_leads(db):
     for d in docs:
         doc_id = d.get("_id")
         skey = str(doc_id)
+        confirm_key = f"confirm_delete_{skey}"
 
         # ---- Cabeçalho do card: Nome / Email / Cargo / Telefone ----
         # "nome" vem do campo "contato" (array) -> pega o mais recente.
@@ -278,17 +271,7 @@ def pagina_busca_leads(db):
                 c1, c2, c3 = st.columns(3)
                 with c1: salvar   = st.form_submit_button("Salvar alterações")
                 with c2: cancelar = st.form_submit_button("Cancelar (recarregar)")
-                with c3: pass  # espaço
-
-            # Botão de teste fora do form
-            if st.button("Testar atualização (__touch) para este lead", key=f"touch_{skey}"):
-                try:
-                    res = update_lead_by_id_or_email(leads_col, d, to_set={}, to_unset={})
-                    st.session_state["last_update"][skey] = {"test_touch": res}
-                    ui_log("TOUCH", {"_id": skey, "method": res.get("method"), "matched": res["matched"], "modified": res["modified"]}, level="debug")
-                except Exception as e:
-                    st.session_state["last_update"][skey] = {"error": str(e)}
-                    ui_log("TOUCH exception", {"_id": skey, "err": str(e), "trace": traceback.format_exc()}, level="error")
+                with c3: excluir  = st.form_submit_button("🗑️ Excluir da base")
 
             if cancelar:
                 st.rerun()
@@ -301,8 +284,6 @@ def pagina_busca_leads(db):
                             edited[pf] = d[pf]
 
                     changes, to_set, to_unset = diff_docs(d, edited)
-                    ui_log("SALVAR", {"_id": skey, "changes": len(changes)}, level="debug")
-
                     res = update_lead_by_id_or_email(leads_col, d, to_set, to_unset)
                     st.session_state["last_update"][skey] = {"save": {"res": {"matched": res["matched"], "modified": res["modified"], "method": res.get("method")}, "changes": changes}}
                     if res["matched"] == 0:
@@ -318,14 +299,46 @@ def pagina_busca_leads(db):
                             "update_result": {"matched": res["matched"], "modified": res["modified"], "method": res.get("method")}
                         })
                         if changes:
-                            st.success("Alterações salvas e log registrado.")
+                            st.success("Alterações salvas.")
                         else:
-                            st.info("Nenhum campo alterado, mas __touch foi gravado. Log registrado.")
-                    if auto_rerun: st.rerun()
+                            st.info("Nenhum campo alterado.")
                 except Exception as e:
-                    st.session_state["last_update"][skey] = {"error": str(e), "trace": traceback.format_exc()}
+                    st.session_state["last_update"][skey] = {"error": str(e)}
                     st.error(str(e))
-                    ui_log("SALVAR exception", {"_id": skey, "err": str(e), "trace": traceback.format_exc()}, level="error")
+
+            if excluir:
+                # Excluir é destrutivo: só marca a intenção e pede confirmação
+                # explícita antes de apagar de fato.
+                st.session_state[confirm_key] = True
+
+            # ---- Confirmação de exclusão (fora do form) ----
+            if st.session_state.get(confirm_key):
+                st.warning(f"Tem certeza que deseja excluir **{nome_disp}** ({email_disp}) da base? Essa ação não pode ser desfeita.")
+                cc1, cc2 = st.columns(2)
+                with cc1:
+                    if st.button("Sim, excluir definitivamente", key=f"confirm_yes_{skey}"):
+                        try:
+                            res = delete_lead_by_id_or_email(leads_col, d)
+                            if res["deleted"]:
+                                logs_col.insert_one({
+                                    "type": "lead_delete",
+                                    "doc_id": d.get("_id"),
+                                    "email": d.get("email"),
+                                    "changed_by": _current_user(),
+                                    "ts": datetime.now(timezone.utc),
+                                    "delete_result": res
+                                })
+                                st.session_state.pop(confirm_key, None)
+                                st.success("Lead excluído.")
+                                st.rerun()
+                            else:
+                                st.error("Não foi possível excluir: documento não encontrado (verificar _id/email).")
+                        except Exception as e:
+                            st.error(str(e))
+                with cc2:
+                    if st.button("Cancelar exclusão", key=f"confirm_no_{skey}"):
+                        st.session_state.pop(confirm_key, None)
+                        st.rerun()
 
             # Mostra último resultado
             last = st.session_state["last_update"].get(skey)
@@ -341,5 +354,3 @@ def pagina_busca_leads(db):
     with col_c:
         if st.button("Próxima página ▶", disabled=current_page >= last_page):
             st.session_state.lead_page = min(last_page, current_page + 1); st.rerun()
-
-    debug_panel()

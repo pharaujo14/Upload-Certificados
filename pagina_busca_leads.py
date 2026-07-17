@@ -1,7 +1,7 @@
 # pagina_busca_e_edicao_leads_campos.py
 import os, sys, logging, traceback
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo import ReturnDocument
@@ -102,7 +102,7 @@ def update_lead_by_id_or_email(leads_col: Collection, doc, to_set: dict, to_unse
     Sempre grava updated_at e __touch.
     Retorna dict com matched/modified/method usado.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     to_set = dict(to_set or {})
     to_unset = dict(to_unset or {})
     to_set["updated_at"] = now
@@ -154,22 +154,44 @@ def pagina_busca_leads(db):
         with c5: ordenar_por = st.selectbox("Ordenar por", ["Mais recentes (updated_at)", "Mais antigos (updated_at)"])
         submitted = st.form_submit_button("Buscar")
 
+    # ----------------------------------------------------------------
+    # FIX PRINCIPAL: o app inteiro re-executa a cada clique (paginação,
+    # salvar, cancelar, testar), e nesses re-runs `submitted` volta a
+    # ser False. Antes disso fazia a função `return` imediatamente,
+    # perdendo a busca. Agora guardamos os critérios em session_state
+    # e SÓ atualizamos quando o form de busca é de fato submetido;
+    # em qualquer outro rerun, reaproveitamos o que já está salvo.
+    # ----------------------------------------------------------------
     if "lead_page" not in st.session_state:
         st.session_state.lead_page = 1
+    if "search_criteria" not in st.session_state:
+        st.session_state.search_criteria = None
+
     if submitted:
+        st.session_state.search_criteria = {
+            "q_nome": q_nome,
+            "q_empresa": q_empresa,
+            "q_email": q_email,
+            "page_size": page_size,
+            "ordenar_por": ordenar_por,
+        }
         st.session_state.lead_page = 1
-    if not submitted:
+
+    criteria = st.session_state.search_criteria
+    if criteria is None:
+        # Nunca buscou nesta sessão ainda.
         debug_panel()
         return
 
     ors = []
-    if q_nome:    ors.append({"nome": _rx(q_nome)})
-    if q_empresa: ors.append({"empresa": _rx(q_empresa)})
-    if q_email:   ors.append({"email": _rx(q_email)})
+    if criteria["q_nome"]:    ors.append({"nome": _rx(criteria["q_nome"])})
+    if criteria["q_empresa"]: ors.append({"empresa": _rx(criteria["q_empresa"])})
+    if criteria["q_email"]:   ors.append({"email": _rx(criteria["q_email"])})
     query = {"$or": ors} if ors else {}
 
+    page_size = criteria["page_size"]
     sort_field = "updated_at"
-    sort_dir   = -1 if "Mais recentes" in ordenar_por else 1
+    sort_dir   = -1 if "Mais recentes" in criteria["ordenar_por"] else 1
 
     current_page = st.session_state.lead_page
     skip = (current_page - 1) * page_size
@@ -190,10 +212,16 @@ def pagina_busca_leads(db):
     # Cards
     for d in docs:
         doc_id = d.get("_id")
-        email_disp = safe_str(d.get("email")) or "(sem email)"
         skey = str(doc_id)
 
-        with st.expander(f"{email_disp}  —  _id: {skey}  (tipo: {type(doc_id).__name__})"):
+        # ---- Cabeçalho do card: Nome / Email / Cargo / Telefone ----
+        nome_disp     = safe_str(d.get("nome")) or "(sem nome)"
+        email_disp    = safe_str(d.get("email")) or "(sem email)"
+        cargo_disp    = safe_str(d.get("cargo")) or "(sem cargo)"
+        telefone_disp = safe_str(d.get("telefone")) or "(sem telefone)"
+        header = f"{nome_disp}  —  {email_disp}  —  {cargo_disp}  —  {telefone_disp}"
+
+        with st.expander(header):
             # Read-only
             col1, col2 = st.columns(2)
             with col1:
@@ -270,7 +298,7 @@ def pagina_busca_leads(db):
                             "email": d.get("email"),
                             "changed_by": _current_user(),
                             "changes": changes,
-                            "ts": datetime.utcnow(),
+                            "ts": datetime.now(timezone.utc),
                             "update_result": {"matched": res["matched"], "modified": res["modified"], "method": res.get("method")}
                         })
                         if changes:

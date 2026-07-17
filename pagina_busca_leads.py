@@ -54,6 +54,18 @@ def to_list_from_textarea(txt: str):
     vals = [ln.strip() for ln in txt.splitlines()]
     return [v for v in vals if v]
 
+def ultimo_valor(v):
+    """
+    Vários campos da base (contato, celular, telefone, cargo, empresa, fonte...)
+    são arrays onde novos valores vão sendo adicionados ao final com o tempo.
+    Retorna o item mais recente (último não vazio) da lista, ou o próprio
+    valor se não for uma lista.
+    """
+    if isinstance(v, list):
+        vals = [x for x in v if x not in (None, "")]
+        return vals[-1] if vals else None
+    return v
+
 def _current_user():
     return (st.session_state.get("user_name")
             or st.session_state.get("email")
@@ -215,10 +227,14 @@ def pagina_busca_leads(db):
         skey = str(doc_id)
 
         # ---- Cabeçalho do card: Nome / Email / Cargo / Telefone ----
-        nome_disp     = safe_str(d.get("nome")) or "(sem nome)"
+        # "nome" vem do campo "contato" (array) -> pega o mais recente.
+        # "telefone" prioriza o campo "celular" (mais recente); se não
+        # existir, cai para o campo "telefone" (também mais recente).
+        nome_disp     = safe_str(ultimo_valor(d.get("contato"))) or "(sem nome)"
         email_disp    = safe_str(d.get("email")) or "(sem email)"
-        cargo_disp    = safe_str(d.get("cargo")) or "(sem cargo)"
-        telefone_disp = safe_str(d.get("telefone")) or "(sem telefone)"
+        cargo_disp    = safe_str(ultimo_valor(d.get("cargo"))) or "(sem cargo)"
+        telefone_val  = ultimo_valor(d.get("celular")) or ultimo_valor(d.get("telefone"))
+        telefone_disp = safe_str(telefone_val) or "(sem telefone)"
         header = f"{nome_disp}  —  {email_disp}  —  {cargo_disp}  —  {telefone_disp}"
 
         with st.expander(header):

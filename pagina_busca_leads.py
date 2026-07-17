@@ -1,6 +1,8 @@
 # pagina_busca_e_edicao_leads_campos.py
 import os
+import io
 import streamlit as st
+import pandas as pd
 from datetime import datetime, timezone
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -122,6 +124,50 @@ def update_lead_by_id_or_email(leads_col: Collection, doc, to_set: dict, to_unse
 
     return {"matched": 0, "modified": 0, "method": "none"}
 
+# ---------- Exportação para Excel ----------
+def _doc_to_row(d: dict) -> dict:
+    """
+    Achata um documento do Mongo em uma linha de planilha:
+    - _id vira string
+    - listas (contato, celular, cargo, empresa, fonte, account_manager...)
+      viram texto separado por vírgula
+    - dicts viram "chave: valor" separados por ponto e vírgula
+    - datetimes viram texto formatado
+    """
+    row = {}
+    for k, v in d.items():
+        if k == "_id":
+            row[k] = str(v)
+        elif isinstance(v, list):
+            row[k] = safe_str(v)
+        elif isinstance(v, dict):
+            row[k] = "; ".join(f"{kk}: {vv}" for kk, vv in v.items())
+        elif isinstance(v, datetime):
+            row[k] = safe_str(v)
+        else:
+            row[k] = v
+    return row
+
+def exportar_leads_para_excel(leads_col: Collection) -> bytes:
+    """
+    Busca TODA a coleção de leads (sem filtro) e devolve os bytes de um
+    .xlsx pronto para download via st.download_button.
+    """
+    docs = list(leads_col.find({}))
+    rows = [_doc_to_row(d) for d in docs]
+    df = pd.DataFrame(rows)
+
+    if not df.empty:
+        # _id e email primeiro; o resto em ordem alfabética
+        prioritarias = [c for c in ["_id", "email"] if c in df.columns]
+        outras = sorted(c for c in df.columns if c not in prioritarias)
+        df = df[prioritarias + outras]
+
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False, engine="openpyxl", sheet_name="Leads")
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def delete_lead_by_id_or_email(leads_col: Collection, doc):
     """
     Exclui o lead por _id (robusto a str/ObjectId) e, se não casar,
@@ -150,6 +196,25 @@ def pagina_busca_leads(db):
 
     leads_col = get_collection(db, "sapinho", "leads")
     logs_col  = get_collection(db, "sapinho", "logs")
+
+    # ---- Exportação da base completa ----
+    col_exp1, col_exp2 = st.columns([1, 3])
+    with col_exp1:
+        if st.button("📤 Gerar exportação (Excel)"):
+            with st.spinner("Gerando arquivo com todos os leads..."):
+                st.session_state["export_xlsx_bytes"] = exportar_leads_para_excel(leads_col)
+                st.session_state["export_xlsx_ts"] = datetime.now(timezone.utc)
+    with col_exp2:
+        if st.session_state.get("export_xlsx_bytes"):
+            st.download_button(
+                "⬇️ Baixar leads_completo.xlsx",
+                data=st.session_state["export_xlsx_bytes"],
+                file_name=f"leads_completo_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            st.caption(f"Gerado em: {safe_str(st.session_state.get('export_xlsx_ts'))} (UTC)")
+
+    st.markdown("---")
 
     # Busca
     with st.form("form_busca_leads", clear_on_submit=False):

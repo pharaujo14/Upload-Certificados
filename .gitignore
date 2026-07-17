@@ -2,3 +2,5 @@
 *.xlsx
 *.pdf
 \.streamlit
+excluir-emails.py
+backups_mongo

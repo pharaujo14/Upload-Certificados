@@ -14,6 +14,7 @@ from pagina_relatorios_bdr_executivo import pagina_relatorios_bdr_executivo
 from pagina_relatorios_bdr_operacional import pagina_relatorios_bdr_operacional
 from pagina_upload_leads import pagina_upload_leads
 from pagina_busca_leads import pagina_busca_leads
+from pagina_dashboard_leads import pagina_dashboard_leads
 
 # ======================
 # Configurações iniciais
@@ -75,6 +76,9 @@ with st.sidebar:
                 
             if st.button("Consultar leads", use_container_width=True, key="btn_leads_search"):
                 st.session_state["page"] = "search_leads"
+                
+            if st.button("Dashboard leads", use_container_width=True, key="btn_leads_dashboard"):
+                st.session_state["page"] = "dashboard_leads"
 
     # ----- Certificados -----
     with st.expander("📁 Certificados"):
@@ -138,6 +142,12 @@ elif page == "leads":
 elif page == "search_leads":
     if user_role in ["viewer", "admin"]:
         pagina_busca_leads(db)
+    else:
+        st.warning("Você não tem permissão para acessar esta aba.")
+        
+elif page == "dashboard_leads":
+    if user_role in ["viewer", "admin"]:
+        pagina_dashboard_leads(db)
     else:
         st.warning("Você não tem permissão para acessar esta aba.")
         

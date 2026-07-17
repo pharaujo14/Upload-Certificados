@@ -196,7 +196,7 @@ def pagina_busca_leads(db):
         return
 
     ors = []
-    if criteria["q_nome"]:    ors.append({"nome": _rx(criteria["q_nome"])})
+    if criteria["q_nome"]:    ors.append({"contato": _rx(criteria["q_nome"])})
     if criteria["q_empresa"]: ors.append({"empresa": _rx(criteria["q_empresa"])})
     if criteria["q_email"]:   ors.append({"email": _rx(criteria["q_email"])})
     query = {"$or": ors} if ors else {}

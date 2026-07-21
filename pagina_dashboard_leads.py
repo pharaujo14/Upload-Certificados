@@ -129,3 +129,26 @@ def pagina_dashboard_leads(db):
         st.bar_chart(am_counts.set_index("Account Manager"))
     with col_table:
         st.dataframe(am_counts, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # ---- Leads por Cargo ----
+    st.markdown("### Leads por Cargo")
+
+    # Cargos em branco (string vazia após safe_str/ultimo_valor) são
+    # agrupados sob o rótulo "(vazio)" em vez de serem descartados,
+    # para que o gráfico mostre também quantos leads não têm cargo.
+    cargo_series = df["cargo"].replace("", "(vazio)")
+
+    cargo_counts = (
+        cargo_series
+        .value_counts()
+        .reset_index()
+        .rename(columns={"count": "Total de Leads", "cargo": "Cargo"})
+    )
+
+    col_chart2, col_table2 = st.columns([2, 1])
+    with col_chart2:
+        st.bar_chart(cargo_counts.set_index("Cargo"))
+    with col_table2:
+        st.dataframe(cargo_counts, use_container_width=True, hide_index=True)

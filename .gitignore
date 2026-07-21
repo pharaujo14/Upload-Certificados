@@ -3,6 +3,5 @@
 *.csv
 *.pdf
 \.streamlit
-excluir-emails.py
 backups_mongo
-higienizar_account_manager.py
+teste

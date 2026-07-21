@@ -218,14 +218,15 @@ def pagina_busca_leads(db):
 
     # Busca
     with st.form("form_busca_leads", clear_on_submit=False):
-        c1, c2, c3 = st.columns(3)
-        with c1: q_nome    = st.text_input("Nome")
-        with c2: q_empresa = st.text_input("Empresa")
-        with c3: q_email   = st.text_input("Email")
-        c4, c5 = st.columns(2)
-        with c4: page_size   = st.selectbox("Itens por página", [10, 20, 50, 100], index=1)
-        with c5: ordenar_por = st.selectbox("Ordenar por", ["Mais recentes (updated_at)", "Mais antigos (updated_at)"])
-        submitted = st.form_submit_button("Buscar")
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: q_nome    = st.text_input("Nome")
+            with c2: q_empresa = st.text_input("Empresa")
+            with c3: q_email   = st.text_input("Email")
+            with c4: q_cargo   = st.text_input("Cargo")
+            c5, c6 = st.columns(2)
+            with c5: page_size   = st.selectbox("Itens por página", [10, 20, 50, 100], index=1)
+            with c6: ordenar_por = st.selectbox("Ordenar por", ["Mais recentes (updated_at)", "Mais antigos (updated_at)"])
+            submitted = st.form_submit_button("Buscar")
 
     # ----------------------------------------------------------------
     # Os critérios de busca ficam guardados em session_state e só são
@@ -239,14 +240,15 @@ def pagina_busca_leads(db):
         st.session_state.search_criteria = None
 
     if submitted:
-        st.session_state.search_criteria = {
-            "q_nome": q_nome,
-            "q_empresa": q_empresa,
-            "q_email": q_email,
-            "page_size": page_size,
-            "ordenar_por": ordenar_por,
-        }
-        st.session_state.lead_page = 1
+            st.session_state.search_criteria = {
+                "q_nome": q_nome,
+                "q_empresa": q_empresa,
+                "q_email": q_email,
+                "q_cargo": q_cargo,
+                "page_size": page_size,
+                "ordenar_por": ordenar_por,
+            }
+            st.session_state.lead_page = 1
 
     criteria = st.session_state.search_criteria
     if criteria is None:
@@ -257,6 +259,7 @@ def pagina_busca_leads(db):
     if criteria["q_nome"]:    ors.append({"contato": _rx(criteria["q_nome"])})
     if criteria["q_empresa"]: ors.append({"empresa": _rx(criteria["q_empresa"])})
     if criteria["q_email"]:   ors.append({"email": _rx(criteria["q_email"])})
+    if criteria.get("q_cargo"): ors.append({"cargo": _rx(criteria["q_cargo"])})
     query = {"$or": ors} if ors else {}
 
     page_size = criteria["page_size"]

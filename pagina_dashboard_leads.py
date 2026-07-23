@@ -6,18 +6,17 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 
 # ----------------------------------------------------------------
-# Palavras-chave usadas para classificar um cargo como "decisor".
-# Ajuste essa lista livremente conforme o critério do negócio.
-# A comparação é feita em maiúsculas e por substring (ex: "GERENTE"
-# casa com "GERENTE EXECUTIVO DE SEGURANÇA CIBERNÉTICA").
+# Rótulo usado quando o cargo do lead está vazio, e quando o cargo
+# existe mas não foi encontrado na tabela "cargos" (ex: ainda não
+# passou pelo De-Para de unificação, ou é um valor novo na base).
 # ----------------------------------------------------------------
-DECISOR_KEYWORDS = [
-    "DIRETOR", "DIRETORA", "PRESIDENTE", "VICE-PRESIDENTE", "VICE PRESIDENTE",
-    "CEO", "CFO", "COO", "CTO", "CIO", "CISO", "CMO",
-    "SÓCIO", "SOCIO", "FUNDADOR", "FUNDADORA", "OWNER", "PROPRIETÁRIO", "PROPRIETARIA",
-    "GERENTE", "GERÊNCIA", "GERENCIA", "HEAD", "CHEFE",
-    "SUPERINTENDENTE", "COORDENADOR", "COORDENADORA", "LÍDER", "LIDER",
-]
+SEM_CARGO_LABEL = "(sem cargo)"
+NAO_CLASSIFICADO_LABEL = "(não classificado)"
+
+# Classificação considerada "decisor" para efeito da métrica principal.
+# Ajuste aqui se o rótulo na tabela "cargos" for diferente.
+CLASSIFICACAO_DECISOR = "Decisor"
+
 
 # ---------- Mongo ----------
 def get_collection(db_or_col, db_name: str, col_name: str) -> Collection:
@@ -44,20 +43,32 @@ def safe_str(v):
     if isinstance(v, datetime): return v.strftime("%Y-%m-%d %H:%M:%S")
     return "" if v is None else str(v)
 
-def eh_decisor(cargo_str: str) -> bool:
-    if not cargo_str:
-        return False
-    c = cargo_str.upper()
-    return any(kw in c for kw in DECISOR_KEYWORDS)
-
 # ---------- Carga de dados (com cache) ----------
 @st.cache_data(ttl=300, show_spinner="Carregando dados do dashboard...")
-def _carregar_dados(_leads_col, cache_bust: int = 0):
+def _carregar_mapa_classificacao(_cargos_col, cache_bust: int = 0) -> dict:
     """
-    Busca só os campos necessários (evita trazer o documento inteiro)
-    e devolve um DataFrame já com os valores mais recentes resolvidos.
+    Busca a tabela de cargos (nome -> classificação) já cadastrada no banco
+    e devolve um dicionário para lookup em memória. A tabela é pequena
+    (algumas centenas de cargos), então isso é bem mais barato do que fazer
+    um $lookup por lead.
+    """
+    docs = _cargos_col.find({}, {"nome": 1, "classificacao": 1})
+    return {
+        d["nome"]: d.get("classificacao") or NAO_CLASSIFICADO_LABEL
+        for d in docs
+        if d.get("nome")
+    }
+
+@st.cache_data(ttl=300, show_spinner="Carregando dados do dashboard...")
+def _carregar_dados(_leads_col, _cargos_col, cache_bust: int = 0):
+    """
+    Busca só os campos necessários (evita trazer o documento inteiro),
+    resolve o valor mais recente de cargo/account_manager/empresa, e
+    cruza o cargo com a tabela "cargos" para obter a classificação.
     `cache_bust` existe só para permitir invalidar o cache manualmente.
     """
+    mapa_classificacao = _carregar_mapa_classificacao(_cargos_col, cache_bust)
+
     projection = {"account_manager": 1, "empresa": 1, "cargo": 1}
     docs = list(_leads_col.find({}, projection))
 
@@ -66,20 +77,27 @@ def _carregar_dados(_leads_col, cache_bust: int = 0):
         am_val      = safe_str(ultimo_valor(d.get("account_manager"))) or "(sem account manager)"
         empresa_val = safe_str(ultimo_valor(d.get("empresa"))) or "(sem empresa)"
         cargo_val   = safe_str(ultimo_valor(d.get("cargo")))
+
+        if not cargo_val:
+            classificacao_val = SEM_CARGO_LABEL
+        else:
+            classificacao_val = mapa_classificacao.get(cargo_val, NAO_CLASSIFICADO_LABEL)
+
         rows.append({
             "account_manager": am_val,
             "empresa": empresa_val,
             "cargo": cargo_val,
-            "decisor": eh_decisor(cargo_val),
+            "classificacao": classificacao_val,
         })
 
-    return pd.DataFrame(rows, columns=["account_manager", "empresa", "cargo", "decisor"])
+    return pd.DataFrame(rows, columns=["account_manager", "empresa", "cargo", "classificacao"])
 
 # ---------- Página ----------
 def pagina_dashboard_leads(db):
     st.markdown("## 📊 Dashboard de Leads")
 
-    leads_col = get_collection(db, "sapinho", "leads")
+    leads_col  = get_collection(db, "sapinho", "leads")
+    cargos_col = get_collection(db, "sapinho", "cargos")
 
     if "dashboard_cache_bust" not in st.session_state:
         st.session_state.dashboard_cache_bust = 0
@@ -90,11 +108,11 @@ def pagina_dashboard_leads(db):
             st.session_state.dashboard_cache_bust += 1
             st.rerun()
 
-    df = _carregar_dados(leads_col, st.session_state.dashboard_cache_bust)
+    df = _carregar_dados(leads_col, cargos_col, st.session_state.dashboard_cache_bust)
 
     total_leads     = len(df)
     total_empresas  = df["empresa"].nunique() if not df.empty else 0
-    total_decisores = int(df["decisor"].sum()) if not df.empty else 0
+    total_decisores = int((df["classificacao"] == CLASSIFICACAO_DECISOR).sum()) if not df.empty else 0
     pct_decisores   = (total_decisores / total_leads * 100) if total_leads else 0
 
     # ---- Métricas principais ----
@@ -105,8 +123,8 @@ def pagina_dashboard_leads(db):
     m4.metric("Account Managers ativos", df["account_manager"].nunique() if not df.empty else 0)
 
     st.caption(
-        "Decisor é calculado a partir do cargo mais recente do lead, "
-        "buscando termos como diretor, gerente, sócio, CEO, head, entre outros."
+        "Decisor é calculado a partir da classificação cadastrada para o cargo "
+        "mais recente do lead, na tabela de cargos do banco."
     )
 
     st.markdown("---")
@@ -132,23 +150,28 @@ def pagina_dashboard_leads(db):
 
     st.markdown("---")
 
-    # ---- Leads por Cargo ----
-    st.markdown("### Leads por Cargo")
+    # ---- Leads por Classificação ----
+    st.markdown("### Leads por Classificação")
 
-    # Cargos em branco (string vazia após safe_str/ultimo_valor) são
-    # agrupados sob o rótulo "(vazio)" em vez de serem descartados,
-    # para que o gráfico mostre também quantos leads não têm cargo.
-    cargo_series = df["cargo"].replace("", "(vazio)")
-
-    cargo_counts = (
-        cargo_series
+    classificacao_counts = (
+        df["classificacao"]
         .value_counts()
         .reset_index()
-        .rename(columns={"count": "Total de Leads", "cargo": "Cargo"})
+        .rename(columns={"count": "Total de Leads", "classificacao": "Classificação"})
     )
 
     col_chart2, col_table2 = st.columns([2, 1])
     with col_chart2:
-        st.bar_chart(cargo_counts.set_index("Cargo"))
+        st.bar_chart(classificacao_counts.set_index("Classificação"))
     with col_table2:
-        st.dataframe(cargo_counts, use_container_width=True, hide_index=True)
+        st.dataframe(classificacao_counts, use_container_width=True, hide_index=True)
+
+    # Cargos que caíram em "(não classificado)" merecem atenção: ou é um
+    # cargo novo ainda sem De-Para, ou faltou incluir na planilha de
+    # classificação. Mostra a lista para facilitar a manutenção da tabela.
+    nao_classificados = sorted(
+        df.loc[df["classificacao"] == NAO_CLASSIFICADO_LABEL, "cargo"].unique()
+    )
+    if nao_classificados:
+        with st.expander(f"⚠️ {len(nao_classificados)} cargo(s) sem classificação cadastrada"):
+            st.dataframe(pd.DataFrame({"Cargo": nao_classificados}), use_container_width=True, hide_index=True)
